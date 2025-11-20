@@ -140,15 +140,16 @@ struct MainBrowserView: View {
                     
                     // Spacer that allows clicks to pass through to browser
                     Spacer()
-                        .frame(height: browserHeight)
                         .allowsHitTesting(false) // Allow clicks to pass through to browser
                 }
-                .allowsHitTesting(true) // But the top portion (cards) should be clickable
+                .allowsHitTesting(false) // Default to not blocking browser, only specific elements block
                 
                 // Unified Search/Input Field - Overlay on browser (only in browser area, not over tab bar)
+                // Must not block browser interaction
                 VStack(spacing: 0) {
                     Spacer()
                         .frame(height: browserTopOffset)
+                        .allowsHitTesting(false) // Don't block browser
                     
                     ZStack {
                         if !isSearchActive {
@@ -164,6 +165,7 @@ struct MainBrowserView: View {
                             .opacity(isSearchFieldVisible ? 1 : 0)
                             .scaleEffect(isSearchFieldVisible ? 1 : 0.95)
                             .transition(.scale.combined(with: .opacity))
+                            .allowsHitTesting(isSearchFieldVisible) // Only block when visible
                         } else {
                             // Bottom search field when active
                             VStack {
@@ -182,7 +184,7 @@ struct MainBrowserView: View {
                         }
                     }
                     .frame(width: geometry.size.width, height: browserHeight)
-                    .contentShape(Rectangle())
+                    .allowsHitTesting(isSearchActive || isSearchFieldVisible) // Only block when search is active or visible
                     .onHover { hovering in
                         if let window = NSApplication.shared.windows.first {
                             let windowLocation = NSEvent.mouseLocation
