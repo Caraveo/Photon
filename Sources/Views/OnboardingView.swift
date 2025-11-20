@@ -253,14 +253,9 @@ struct OnboardingView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color.blue)
                     .cornerRadius(10)
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                 }
                 .buttonStyle(.plain)
                 .disabled(selectedModel == nil || isConnecting)
@@ -296,14 +291,9 @@ struct OnboardingView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color.blue)
                     .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
             }
             .buttonStyle(.plain)
             .padding(.top, 20)
