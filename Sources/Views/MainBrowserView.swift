@@ -403,11 +403,17 @@ struct MainBrowserView: View {
                             query: query,
                             promptMode: mode
                         )
-                            activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
+                        activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
                             
-                        case .failure(let error):
-                            let errorCard = AIResponseCard(
-                            response: "Error: \(error.localizedDescription)",
+                    case .failure(let error):
+                        let errorMessage: String
+                        if let aiError = error as? AIError {
+                            errorMessage = aiError.localizedDescription
+                        } else {
+                            errorMessage = "Error: \(error.localizedDescription)"
+                        }
+                        let errorCard = AIResponseCard(
+                            response: errorMessage,
                             relevantURL: nil,
                             query: query,
                             promptMode: mode
