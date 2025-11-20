@@ -74,19 +74,29 @@ struct PhotonApp: App {
     private func openSettingsWindow() {
         // Open settings window using SwiftUI's window management
         DispatchQueue.main.async {
-            // Find existing settings window or let SwiftUI create it
-            if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
-                window.makeKeyAndOrderFront(nil)
+            // First, try to find existing settings window
+            if let existingWindow = NSApplication.shared.windows.first(where: { 
+                $0.identifier?.rawValue == "settings" || $0.title == "Settings"
+            }) {
+                existingWindow.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
             } else {
-                // Use NSApp to request window creation via WindowGroup
-                // SwiftUI will handle window creation automatically
-                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-                // Fallback: manually trigger window opening
-                if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
-                    window.makeKeyAndOrderFront(nil)
-                    NSApp.activate(ignoringOtherApps: true)
-                }
+                // Create new window using NSWindow
+                let window = NSWindow(
+                    contentRect: NSRect(x: 0, y: 0, width: 700, height: 800),
+                    styleMask: [.titled, .closable, .miniaturizable],
+                    backing: .buffered,
+                    defer: false
+                )
+                window.title = "Settings"
+                window.identifier = NSUserInterfaceItemIdentifier("settings")
+                window.center()
+                window.contentView = NSHostingView(
+                    rootView: SettingsView(settings: settings, aiService: LocalAIService(settings: settings))
+                        .environmentObject(settings)
+                )
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
             }
         }
     }
