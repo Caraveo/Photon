@@ -103,28 +103,34 @@ class PhotonSearchService {
             "Title: \(result.title)\nSnippet: \(result.snippet)\nURL: \(result.url)"
         }.joined(separator: "\n\n")
         
-        // Create Realtime prompt with markdown formatting request
-        let ragPrompt = """
-        Based on the following retrieved information, provide a comprehensive answer to the user's query using Markdown formatting.
+        // System prompt for formatting instructions
+        let systemPrompt = """
+        You are a helpful AI assistant. Always format your responses using Markdown:
+        - Use **bold** for emphasis
+        - Use *italic* for subtle emphasis
+        - Use `code` for technical terms
+        - Use proper line breaks for readability
+        - Format lists with - or 1.
+        - Use ## for headings when appropriate
+        - Ensure proper spacing after punctuation
+        - Cite relevant URLs when mentioning specific information
+        - If information is incomplete, mention that and suggest visiting source URLs
+        """
+        
+        // User prompt with context
+        let userPrompt = """
+        Based on the following retrieved information, provide a comprehensive answer to the user's query.
         
         User Query: \(query)
         
         Retrieved Information:
         \(contextString)
         
-        Instructions:
-        1. Synthesize the information from the retrieved sources
-        2. Provide a clear, accurate answer formatted in Markdown
-        3. Use **bold** for emphasis, *italic* for subtle emphasis, `code` for technical terms
-        4. Use proper line breaks, lists (- or 1.), and ## headings for structure
-        5. Cite relevant URLs when mentioning specific information
-        6. If the information is incomplete, mention that and suggest the user visit the source URLs
-        
-        Answer (in Markdown):
+        Please synthesize the information from the retrieved sources and provide a clear, accurate answer.
         """
         
         // Use AI service to generate response
-        let aiResponse = try await aiService.sendMessage(ragPrompt)
+        let aiResponse = try await aiService.sendMessage(userPrompt, systemPrompt: systemPrompt)
         let response = aiResponse.response
         
         // Extract URLs from context

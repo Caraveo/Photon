@@ -273,7 +273,7 @@ class LocalAIService: ObservableObject {
         }
     }
     
-    func sendMessage(_ message: String, model: AIModel? = nil) async throws -> AIResponse {
+    func sendMessage(_ message: String, systemPrompt: String? = nil, model: AIModel? = nil) async throws -> AIResponse {
         // Don't auto-connect - user must connect manually
         guard isConnected else {
             let provider = settings.selectedProvider
@@ -289,17 +289,40 @@ class LocalAIService: ObservableObject {
         
         switch provider {
         case .mlx:
-            return try await sendMLXRequest(message: message, model: selectedModel)
+            return try await sendMLXRequest(message: message, systemPrompt: systemPrompt, model: selectedModel)
         case .ollama:
-            return try await sendOllamaRequest(message: message, model: selectedModel)
+            return try await sendOllamaRequest(message: message, systemPrompt: systemPrompt, model: selectedModel)
         case .openai:
-            return try await sendOpenAIRequest(message: message, model: selectedModel)
+            return try await sendOpenAIRequest(message: message, systemPrompt: systemPrompt, model: selectedModel)
         case .mistral:
-            return try await sendMistralRequest(message: message, model: selectedModel)
+            return try await sendMistralRequest(message: message, systemPrompt: systemPrompt, model: selectedModel)
         }
     }
     
-    private func sendMLXRequest(message: String, model: AIModel) async throws -> AIResponse {
+    // Streaming version for MLX
+    func sendStreamingMessage(_ message: String, systemPrompt: String? = nil, model: AIModel? = nil, onChunk: @escaping (String) async -> Void) async throws {
+        guard isConnected else {
+            let provider = settings.selectedProvider
+            let errorMsg = provider == .mlx ? "MLX service not available. Please connect in Settings or make sure MLX is running on http://localhost:11973" :
+                          provider == .ollama ? "Ollama service not available. Please connect in Settings or make sure Ollama is running on http://localhost:11434" :
+                          provider == .openai ? "OpenAI API key not set. Please set it in Settings." :
+                          "Mistral API key not set. Please set it in Settings."
+            throw AIError.notConnectedWithMessage(errorMsg)
+        }
+        
+        let selectedModel = model ?? settings.selectedModel
+        let provider = settings.selectedProvider
+        
+        if provider == .mlx {
+            try await sendMLXStreamingRequest(message: message, systemPrompt: systemPrompt, model: selectedModel, onChunk: onChunk)
+        } else {
+            // For non-MLX providers, fall back to regular request
+            let response = try await sendMessage(message, systemPrompt: systemPrompt, model: selectedModel)
+            await onChunk(response.response)
+        }
+    }
+    
+    private func sendMLXRequest(message: String, systemPrompt: String? = nil, model: AIModel) async throws -> AIResponse {
         guard let baseURL = URL(string: AIProvider.mlx.baseURL) else {
             throw AIError.requestFailed
         }
@@ -309,13 +332,19 @@ class LocalAIService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // Build messages array with optional system prompt
+        var messages: [[String: String]] = []
+        if let systemPrompt = systemPrompt {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        messages.append(["role": "user", "content": message])
+        
         let requestBody: [String: Any] = [
             "model": model.id == "mlx-default" ? "" : model.id,
-            "messages": [
-                ["role": "user", "content": message]
-            ],
+            "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 1000
+            "max_tokens": 1000,
+            "stream": false
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -360,7 +389,99 @@ class LocalAIService: ObservableObject {
         }
     }
     
-    private func sendOpenAIRequest(message: String, model: AIModel) async throws -> AIResponse {
+    // Streaming version for MLX
+    private func sendMLXStreamingRequest(message: String, systemPrompt: String? = nil, model: AIModel, onChunk: @escaping (String) async -> Void) async throws {
+        guard let baseURL = URL(string: AIProvider.mlx.baseURL) else {
+            throw AIError.requestFailed
+        }
+        let url = baseURL.appendingPathComponent("v1/chat/completions")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        
+        // Build messages array with optional system prompt
+        var messages: [[String: String]] = []
+        if let systemPrompt = systemPrompt {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        messages.append(["role": "user", "content": message])
+        
+        let requestBody: [String: Any] = [
+            "model": model.id == "mlx-default" ? "" : model.id,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 1000,
+            "stream": true
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        
+        do {
+            // Use URLSession's async bytes API for streaming
+            let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AIError.requestFailed
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                throw AIError.requestFailed
+            }
+            
+            var accumulatedContent = ""
+            var inReasoningSection = false
+            
+            for try await line in asyncBytes.lines {
+                guard !Task.isCancelled else { return }
+                
+                if line.hasPrefix("data: ") {
+                    let jsonString = String(line.dropFirst(6))
+                    
+                    if jsonString == "[DONE]" {
+                        break
+                    }
+                    
+                    guard let jsonData = jsonString.data(using: .utf8),
+                          let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                          let choices = json["choices"] as? [[String: Any]],
+                          let firstChoice = choices.first,
+                          let delta = firstChoice["delta"] as? [String: Any],
+                          let content = delta["content"] as? String else {
+                        continue
+                    }
+                    
+                    accumulatedContent += content
+                    
+                    // Check for reasoning markers
+                    if accumulatedContent.contains("[Reasoning]") && !inReasoningSection {
+                        inReasoningSection = true
+                    }
+                    
+                    if accumulatedContent.contains("[Answer]") {
+                        // Switch to answer section
+                        inReasoningSection = false
+                        if let range = accumulatedContent.range(of: "[Answer]") {
+                            let answerStart = accumulatedContent.index(range.upperBound, offsetBy: 0)
+                            let answerContent = String(accumulatedContent[answerStart...])
+                            await onChunk(String(answerContent.suffix(content.count)))
+                        }
+                    } else if !inReasoningSection {
+                        // In answer section or no markers - stream the content
+                        await onChunk(content)
+                    }
+                    // If in reasoning section, don't stream yet
+                }
+            }
+        } catch let error as AIError {
+            throw error
+        } catch {
+            throw AIError.requestFailed
+        }
+    }
+    
+    private func sendOpenAIRequest(message: String, systemPrompt: String? = nil, model: AIModel) async throws -> AIResponse {
         guard !settings.openAIKey.isEmpty else {
             throw AIError.notConnected
         }
@@ -371,11 +492,16 @@ class LocalAIService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(settings.openAIKey)", forHTTPHeaderField: "Authorization")
         
+        // Build messages array with optional system prompt
+        var messages: [[String: String]] = []
+        if let systemPrompt = systemPrompt {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        messages.append(["role": "user", "content": message])
+        
         let requestBody: [String: Any] = [
             "model": model.id,
-            "messages": [
-                ["role": "user", "content": message]
-            ],
+            "messages": messages,
             "temperature": 0.7,
             "max_tokens": 1000
         ]
@@ -400,7 +526,7 @@ class LocalAIService: ObservableObject {
         return AIResponse(response: content, relevantURL: relevantURL, query: message)
     }
     
-    private func sendOllamaRequest(message: String, model: AIModel) async throws -> AIResponse {
+    private func sendOllamaRequest(message: String, systemPrompt: String? = nil, model: AIModel) async throws -> AIResponse {
         guard let baseURL = URL(string: AIProvider.ollama.baseURL) else {
             throw AIError.requestFailed
         }
@@ -410,11 +536,16 @@ class LocalAIService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // Build messages array with optional system prompt
+        var messages: [[String: String]] = []
+        if let systemPrompt = systemPrompt {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        messages.append(["role": "user", "content": message])
+        
         let requestBody: [String: Any] = [
             "model": model.id,
-            "messages": [
-                ["role": "user", "content": message]
-            ],
+            "messages": messages,
             "stream": false
         ]
         
@@ -451,7 +582,7 @@ class LocalAIService: ObservableObject {
         }
     }
     
-    private func sendMistralRequest(message: String, model: AIModel) async throws -> AIResponse {
+    private func sendMistralRequest(message: String, systemPrompt: String? = nil, model: AIModel) async throws -> AIResponse {
         guard !settings.mistralKey.isEmpty else {
             throw AIError.notConnected
         }
@@ -462,11 +593,16 @@ class LocalAIService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(settings.mistralKey)", forHTTPHeaderField: "Authorization")
         
+        // Build messages array with optional system prompt
+        var messages: [[String: String]] = []
+        if let systemPrompt = systemPrompt {
+            messages.append(["role": "system", "content": systemPrompt])
+        }
+        messages.append(["role": "user", "content": message])
+        
         let requestBody: [String: Any] = [
             "model": model.id,
-            "messages": [
-                ["role": "user", "content": message]
-            ],
+            "messages": messages,
             "temperature": 0.7,
             "max_tokens": 1000
         ]
@@ -492,7 +628,7 @@ class LocalAIService: ObservableObject {
     }
     
     /// Find the most relevant URL for a given query and AI response
-    private func findRelevantURL(for query: String, response: String) async throws -> String? {
+    func findRelevantURL(for query: String, response: String) async throws -> String? {
         // Strategy 1: Extract URLs from the AI response
         if let urlInResponse = extractURL(from: response) {
             return urlInResponse

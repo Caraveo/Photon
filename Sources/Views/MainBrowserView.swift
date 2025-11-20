@@ -340,60 +340,186 @@ struct MainBrowserView: View {
     }
     
     private func generatePromptsAfterConnection(query: String, activeTab: BrowserTab) async {
-        // Generate single prompt with markdown formatting request
-        let selectedModel = settings.selectedModel
-        let prompt = """
-        Please provide a comprehensive answer to the following question using Markdown formatting.
-        Use **bold** for emphasis, *italic* for subtle emphasis, `code` for technical terms, 
-        and proper line breaks for readability. Format lists with - or 1. and use ## for headings if needed.
-        
-        Question: \(query)
-        
-        Answer (in Markdown):
+        // System prompt for formatting instructions
+        let systemPrompt = """
+        You are a helpful AI assistant. Always format your responses using Markdown:
+        - Use **bold** for emphasis
+        - Use *italic* for subtle emphasis
+        - Use `code` for technical terms
+        - Use proper line breaks for readability
+        - Format lists with - or 1.
+        - Use ## for headings when appropriate
+        - Ensure proper spacing after punctuation
         """
         
-        do {
-            let response = try await aiService.sendMessage(prompt, model: selectedModel)
-            
-            // Parse MLX response to extract reasoning if present
-            let parsed = MLXResponseParser.parse(response.response)
-            
-            await MainActor.run {
-                // Show reasoning in thinking indicator if available
-                if !parsed.reasoning.isEmpty {
-                    activeTab.currentReasoning = parsed.reasoning
+        let selectedModel = settings.selectedModel
+        let userPrompt = query // Clean user query without formatting instructions
+        
+        // Check if MLX and use streaming
+        let isMLX = settings.selectedProvider == .mlx
+        
+        if isMLX {
+            // Use streaming for MLX
+            do {
+                // Create initial notification for streaming
+                let notificationId = UUID()
+                await MainActor.run {
+                    let notification = AINotification(
+                        response: "",
+                        relevantURL: nil,
+                        query: query,
+                        promptMode: nil
+                    )
+                    activeTab.aiNotifications.insert(notification, at: 0)
+                    activeTab.streamingNotificationId = notification.id
+                    activeTab.streamingResponse = ""
                 }
                 
-                // Use answer section or full response, and apply spacing fixes
-                var answer = parsed.answer.isEmpty ? response.response : parsed.answer
-                answer = MLXResponseParser.fixSpacing(answer)
+                try await aiService.sendStreamingMessage(userPrompt, systemPrompt: systemPrompt, model: selectedModel) { chunk in
+                    await MainActor.run {
+                        activeTab.streamingResponse += chunk
+                        
+                        // Parse accumulated response for reasoning
+                        let parsed = MLXResponseParser.parse(activeTab.streamingResponse)
+                        
+                        // Update reasoning if available
+                        if !parsed.reasoning.isEmpty {
+                            activeTab.currentReasoning = parsed.reasoning
+                        }
+                        
+                        // Update notification with current response
+                        if let notificationId = activeTab.streamingNotificationId,
+                           let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notificationId }) {
+                            let answer = parsed.answer.isEmpty ? activeTab.streamingResponse : parsed.answer
+                            let fixedAnswer = MLXResponseParser.fixSpacing(answer)
+                            
+                            // Update existing notification
+                            var updatedNotification = activeTab.aiNotifications[index]
+                            // Create new notification with updated response
+                            let newNotification = AINotification(
+                                response: fixedAnswer,
+                                relevantURL: updatedNotification.relevantURL?.absoluteString,
+                                query: query,
+                                promptMode: nil
+                            )
+                            activeTab.aiNotifications[index] = newNotification
+                        }
+                    }
+                }
                 
-                let notification = AINotification(
-                    response: answer,
-                    relevantURL: response.relevantURL,
-                    query: query,
-                    promptMode: nil
-                )
-                activeTab.aiNotifications.insert(notification, at: 0)
-                activeTab.isProcessingAI = false
-                activeTab.currentReasoning = "" // Clear reasoning after showing notification
+                await MainActor.run {
+                    // Finalize notification
+                    if let notificationId = activeTab.streamingNotificationId,
+                       let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notificationId }) {
+                        let parsed = MLXResponseParser.parse(activeTab.streamingResponse)
+                        let answer = parsed.answer.isEmpty ? activeTab.streamingResponse : parsed.answer
+                        let fixedAnswer = MLXResponseParser.fixSpacing(answer)
+                        
+                        // Try to find relevant URL
+                        Task {
+                            let relevantURL = try? await aiService.findRelevantURL(for: userPrompt, response: fixedAnswer)
+                            await MainActor.run {
+                                if let notificationId = activeTab.streamingNotificationId,
+                                   let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notificationId }) {
+                                    activeTab.aiNotifications[index] = AINotification(
+                                        response: fixedAnswer,
+                                        relevantURL: relevantURL,
+                                        query: query,
+                                        promptMode: nil
+                                    )
+                                }
+                                activeTab.isProcessingAI = false
+                                activeTab.currentReasoning = ""
+                                activeTab.streamingResponse = ""
+                                activeTab.streamingNotificationId = nil
+                            }
+                        }
+                    } else {
+                        activeTab.isProcessingAI = false
+                        activeTab.currentReasoning = ""
+                        activeTab.streamingResponse = ""
+                        activeTab.streamingNotificationId = nil
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    let errorMessage: String
+                    if let aiError = error as? AIError {
+                        errorMessage = aiError.localizedDescription
+                    } else {
+                        errorMessage = "Error: \(error.localizedDescription)"
+                    }
+                    
+                    // Update or create error notification
+                    if let notificationId = activeTab.streamingNotificationId,
+                       let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notificationId }) {
+                        activeTab.aiNotifications[index] = AINotification(
+                            response: errorMessage,
+                            relevantURL: nil,
+                            query: query,
+                            promptMode: nil
+                        )
+                    } else {
+                        let errorNotification = AINotification(
+                            response: errorMessage,
+                            relevantURL: nil,
+                            query: query,
+                            promptMode: nil
+                        )
+                        activeTab.aiNotifications.insert(errorNotification, at: 0)
+                    }
+                    
+                    activeTab.isProcessingAI = false
+                    activeTab.currentReasoning = ""
+                    activeTab.streamingResponse = ""
+                    activeTab.streamingNotificationId = nil
+                }
             }
-        } catch {
-            await MainActor.run {
-                let errorMessage: String
-                if let aiError = error as? AIError {
-                    errorMessage = aiError.localizedDescription
-                } else {
-                    errorMessage = "Error: \(error.localizedDescription)"
+        } else {
+            // Non-MLX: use regular request
+            do {
+                let response = try await aiService.sendMessage(userPrompt, systemPrompt: systemPrompt, model: selectedModel)
+                
+                // Parse MLX response to extract reasoning if present
+                let parsed = MLXResponseParser.parse(response.response)
+                
+                await MainActor.run {
+                    // Show reasoning in thinking indicator if available
+                    if !parsed.reasoning.isEmpty {
+                        activeTab.currentReasoning = parsed.reasoning
+                    }
+                    
+                    // Use answer section or full response, and apply spacing fixes
+                    var answer = parsed.answer.isEmpty ? response.response : parsed.answer
+                    answer = MLXResponseParser.fixSpacing(answer)
+                    
+                    let notification = AINotification(
+                        response: answer,
+                        relevantURL: response.relevantURL,
+                        query: query,
+                        promptMode: nil
+                    )
+                    activeTab.aiNotifications.insert(notification, at: 0)
+                    activeTab.isProcessingAI = false
+                    activeTab.currentReasoning = "" // Clear reasoning after showing notification
                 }
-                let errorNotification = AINotification(
-                    response: errorMessage,
-                    relevantURL: nil,
-                    query: query,
-                    promptMode: nil
-                )
-                activeTab.aiNotifications.insert(errorNotification, at: 0)
-                activeTab.isProcessingAI = false
+            } catch {
+                await MainActor.run {
+                    let errorMessage: String
+                    if let aiError = error as? AIError {
+                        errorMessage = aiError.localizedDescription
+                    } else {
+                        errorMessage = "Error: \(error.localizedDescription)"
+                    }
+                    let errorNotification = AINotification(
+                        response: errorMessage,
+                        relevantURL: nil,
+                        query: query,
+                        promptMode: nil
+                    )
+                    activeTab.aiNotifications.insert(errorNotification, at: 0)
+                    activeTab.isProcessingAI = false
+                }
             }
         }
     }
