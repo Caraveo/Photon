@@ -8,7 +8,7 @@ class BrowserTab: ObservableObject, Identifiable {
     @Published var canGoBack: Bool = false
     @Published var canGoForward: Bool = false
     @Published var isLoading: Bool = false
-    @Published var aiResponseCards: [AIResponseCard] = []
+    @Published var aiNotifications: [AINotification] = []
     @Published var isProcessingAI: Bool = false
     @Published var favicon: NSImage?
     var webView: BrowserWebView?

@@ -5,7 +5,7 @@ struct AIConduitBar: View {
     @EnvironmentObject var browserState: BrowserState
     @State private var userInput: String = ""
     @State private var userQueries: [String] = []
-    @State private var aiResponseCards: [AIResponseCard] = []
+    @State private var aiNotifications: [AINotification] = []
     @State private var isProcessing: Bool = false
     
     var body: some View {
@@ -38,12 +38,19 @@ struct AIConduitBar: View {
                         UserQueryBubble(query: query)
                     }
                     
-                    // Show AI response cards
-                    ForEach(aiResponseCards) { card in
-                        AIResponseCardView(card: card) { url in
-                            // Navigate to URL in browser
-                            browserState.navigate(to: url.absoluteString)
-                        }
+                    // Show AI notification bubbles
+                    ForEach(aiNotifications) { notification in
+                        NotificationBubble(
+                            notification: notification,
+                            onDismiss: {
+                                if let index = aiNotifications.firstIndex(where: { $0.id == notification.id }) {
+                                    aiNotifications.remove(at: index)
+                                }
+                            },
+                            onURLClick: { url in
+                                browserState.navigate(to: url.absoluteString)
+                            }
+                        )
                     }
                     
                     if isProcessing {
@@ -108,23 +115,23 @@ struct AIConduitBar: View {
             do {
                 let response = try await aiService.sendMessage(query)
                 await MainActor.run {
-                    let card = AIResponseCard(
+                    let notification = AINotification(
                         response: response.response,
                         relevantURL: response.relevantURL,
                         query: response.query
                     )
-                    aiResponseCards.append(card)
+                    aiNotifications.append(notification)
                     isProcessing = false
                 }
             } catch {
                 await MainActor.run {
-                    // Create error card
-                    let errorCard = AIResponseCard(
+                    // Create error notification
+                    let errorNotification = AINotification(
                         response: "Error: \(error.localizedDescription)",
                         relevantURL: nil,
                         query: query
                     )
-                    aiResponseCards.append(errorCard)
+                    aiNotifications.append(errorNotification)
                     isProcessing = false
                 }
             }

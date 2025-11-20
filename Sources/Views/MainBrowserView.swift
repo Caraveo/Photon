@@ -30,14 +30,18 @@ struct MainBrowserView: View {
     private var mainBrowserContent: some View {
         GeometryReader { geometry in
             let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
-            let aiCardsHeight: CGFloat = {
+            let aiNotificationsHeight: CGFloat = {
                 if let activeTab = tabManager.activeTab,
-                   (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
-                    return 280
+                   (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
+                    // Calculate height based on number of notifications (each ~80px + spacing)
+                    let notificationCount = activeTab.aiNotifications.count
+                    let baseHeight: CGFloat = activeTab.isProcessingAI ? 60 : 0
+                    let notificationsHeight = CGFloat(notificationCount) * 90.0 + 32.0 // 90px per notification + padding
+                    return min(notificationsHeight + baseHeight, 400) // Max 400px height
                 }
                 return 0
             }()
-            let browserTopOffset = tabBarHeight + aiCardsHeight
+            let browserTopOffset = tabBarHeight + aiNotificationsHeight
             let browserHeight = geometry.size.height - browserTopOffset
             
             ZStack {
@@ -82,65 +86,56 @@ struct MainBrowserView: View {
                             .allowsHitTesting(true) // Tab bar should be clickable
                     }
                     
-                    // AI Response Cards - Horizontal row below tab bar (for active tab)
+                    // AI Notification Bubbles - Vertical stack below tab bar (for active tab)
                     if let activeTab = tabManager.activeTab,
-                       (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
+                       (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
                         VStack(spacing: 0) {
-                            HStack(spacing: 16) {
-                                // Close button - make sure it's clickable
-                                Button(action: {
-                                    withAnimation {
-                                        activeTab.aiResponseCards.removeAll()
-                                        activeTab.isProcessingAI = false
-                                    }
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.secondary)
-                                        .font(.title3)
-                                        .frame(width: 32, height: 32)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.leading, 20)
-                                .contentShape(Rectangle())
-                                .allowsHitTesting(true)
-                                
-                                // Horizontal scrollable cards
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 20) {
-                                        ForEach(activeTab.aiResponseCards) { card in
-                                            AIResponseCardView(card: card) { url in
+                            ScrollView(.vertical, showsIndicators: false) {
+                                VStack(spacing: 12) {
+                                    // Notification bubbles
+                                    ForEach(activeTab.aiNotifications) { notification in
+                                        NotificationBubble(
+                                            notification: notification,
+                                            onDismiss: {
+                                                if let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notification.id }) {
+                                                    activeTab.aiNotifications.remove(at: index)
+                                                }
+                                            },
+                                            onURLClick: { url in
                                                 activeTab.navigate(to: url.absoluteString)
                                             }
-                                            .transition(.move(edge: .top).combined(with: .opacity))
-                                        }
-                                        
-                                        if activeTab.isProcessingAI {
-                                            HStack(spacing: 12) {
-                                                ProgressView()
-                                                    .scaleEffect(0.8)
-                                                Text("Generating...")
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            .padding(20)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color(NSColor.controlBackgroundColor))
-                                            )
-                                        }
+                                        )
+                                        .transition(.move(edge: .top).combined(with: .opacity))
                                     }
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 20)
+                                    
+                                    // Processing indicator
+                                    if activeTab.isProcessingAI {
+                                        HStack(spacing: 12) {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                            Text("Generating...")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .padding(12)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(Color(NSColor.controlBackgroundColor))
+                                        )
+                                        .transition(.move(edge: .top).combined(with: .opacity))
+                                    }
                                 }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
                             }
-                            .frame(height: 280)
+                            .frame(maxHeight: 400)
                             .background(
                                 Color(NSColor.windowBackgroundColor)
                                     .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
                             )
                         }
                         .transition(.move(edge: .top).combined(with: .opacity))
-                        .allowsHitTesting(true) // Ensure cards area is clickable
+                        .allowsHitTesting(true) // Ensure notifications area is clickable
                     }
                     
                     // Spacer that allows clicks to pass through to browser
@@ -304,7 +299,7 @@ struct MainBrowserView: View {
         
         // Show loading state
         activeTab.isProcessingAI = true
-        activeTab.aiResponseCards.removeAll()
+        activeTab.aiNotifications.removeAll()
         
         Task {
             do {
@@ -312,14 +307,14 @@ struct MainBrowserView: View {
                 let result = try await photonSearch.search(query: query)
                 
                 await MainActor.run {
-                    // Create AI response card
-                    let card = AIResponseCard(
+                    // Create AI notification
+                    let notification = AINotification(
                         response: result.aiResponse,
                         relevantURL: result.relevantURLs.first?.absoluteString,
                         query: query,
                         promptMode: nil
                     )
-                    activeTab.aiResponseCards.append(card)
+                    activeTab.aiNotifications.append(notification)
                     activeTab.isProcessingAI = false
                     
                     // Navigate to first relevant URL if available
@@ -329,13 +324,13 @@ struct MainBrowserView: View {
                 }
             } catch {
                 await MainActor.run {
-                    let errorCard = AIResponseCard(
+                    let errorNotification = AINotification(
                         response: "Error performing Photon Search: \(error.localizedDescription)",
                         relevantURL: nil,
                         query: query,
                         promptMode: nil
                     )
-                    activeTab.aiResponseCards.append(errorCard)
+                    activeTab.aiNotifications.append(errorNotification)
                     activeTab.isProcessingAI = false
                 }
             }
@@ -347,19 +342,19 @@ struct MainBrowserView: View {
         
         activeTab.isProcessingAI = true
         
-        // Clear previous cards for this search
-        activeTab.aiResponseCards.removeAll()
+        // Clear previous notifications for this search
+        activeTab.aiNotifications.removeAll()
         
         // Only proceed if already connected - no auto-connect
         if !aiService.isConnected {
             activeTab.isProcessingAI = false
-            let errorCard = AIResponseCard(
+            let errorNotification = AINotification(
                 response: "AI service not connected. Please connect in Settings (File → Settings) or click the Connect button.",
                 relevantURL: nil,
                 query: query,
                 promptMode: nil
             )
-            activeTab.aiResponseCards.insert(errorCard, at: 0)
+            activeTab.aiNotifications.insert(errorNotification, at: 0)
             return
         }
         
@@ -395,13 +390,13 @@ struct MainBrowserView: View {
                     
                     switch result {
                     case .success(let response):
-                        let card = AIResponseCard(
+                        let notification = AINotification(
                             response: response.response,
                             relevantURL: response.relevantURL,
                             query: query,
                             promptMode: mode
                         )
-                        activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
+                        activeTab.aiNotifications.insert(notification, at: 0) // Insert at top
                             
                     case .failure(let error):
                         let errorMessage: String
@@ -410,13 +405,13 @@ struct MainBrowserView: View {
                         } else {
                             errorMessage = "Error: \(error.localizedDescription)"
                         }
-                        let errorCard = AIResponseCard(
+                        let errorNotification = AINotification(
                             response: errorMessage,
                             relevantURL: nil,
                             query: query,
                             promptMode: mode
                         )
-                        activeTab.aiResponseCards.insert(errorCard, at: 0)
+                        activeTab.aiNotifications.insert(errorNotification, at: 0)
                     }
                     
                         // Check if all requests are done
@@ -548,14 +543,17 @@ struct MainBrowserView: View {
         
         // Calculate if click is in browser area (below tab bar and AI cards)
         let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
-        let aiCardsHeight: CGFloat = {
+        let aiNotificationsHeight: CGFloat = {
             if let activeTab = tabManager.activeTab,
-               (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
-                return 280
+               (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
+                let notificationCount = activeTab.aiNotifications.count
+                let baseHeight: CGFloat = activeTab.isProcessingAI ? 60 : 0
+                let notificationsHeight = CGFloat(notificationCount) * 90.0 + 32.0
+                return min(notificationsHeight + baseHeight, 400)
             }
             return 0
         }()
-        let browserTopOffset = tabBarHeight + aiCardsHeight
+        let browserTopOffset = tabBarHeight + aiNotificationsHeight
         let browserStartY = windowHeight - browserTopOffset
         
         // If click is in browser area (not in search field or cards), hide search field
