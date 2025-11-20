@@ -20,14 +20,10 @@ struct SettingsView: View {
                 Spacer()
                 
                 Button(action: {
-                    // Use dismiss for proper SwiftUI window management
-                    // This avoids animation conflicts that cause crashes
+                    // Close window without triggering problematic animations
+                    // Using orderOut instead of close/performClose to avoid animation crash
                     if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
-                        // Disable animations to prevent crash during window close
-                        NSAnimationContext.runAnimationGroup({ context in
-                            context.duration = 0
-                            window.performClose(nil)
-                        })
+                        window.orderOut(nil)
                     } else {
                         dismiss()
                     }
