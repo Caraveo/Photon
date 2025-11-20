@@ -1,0 +1,27 @@
+# Build artifacts
+.build/
+*.xcodeproj
+*.xcworkspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Swift Package Manager
+.swiftpm/
+
+# Xcode
+*.swiftpm
+xcuserdata/
+DerivedData/
+
+# Compiled files
+*.o
+*.a
+*.dylib
+*.framework
+
+# Logs
+*.log
+
