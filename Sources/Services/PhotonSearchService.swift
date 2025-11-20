@@ -1,6 +1,6 @@
 import Foundation
 
-/// Photon Search RAG Realtime Service
+/// Photon Search Realtime Service
 /// Uses RAG (Retrieval Augmented Generation) to provide real-time AI-powered search
 class PhotonSearchService {
     private let aiService: LocalAIService
@@ -10,7 +10,7 @@ class PhotonSearchService {
         self.aiService = aiService
     }
     
-    /// Perform RAG search: Retrieve relevant web content, then generate AI response
+    /// Perform Realtime search: Retrieve relevant web content, then generate AI response
     func search(query: String) async throws -> PhotonSearchResult {
         // Step 1: Retrieve relevant web content using DuckDuckGo Instant Answer API
         let webResults = try await retrieveWebContent(query: query)
@@ -103,7 +103,7 @@ class PhotonSearchService {
             "Title: \(result.title)\nSnippet: \(result.snippet)\nURL: \(result.url)"
         }.joined(separator: "\n\n")
         
-        // Create RAG prompt
+        // Create Realtime prompt
         let ragPrompt = """
         Based on the following retrieved information, provide a comprehensive answer to the user's query.
         

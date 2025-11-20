@@ -295,7 +295,7 @@ struct MainBrowserView: View {
                 let searchURL = settings.selectedSearchEngine.buildSearchURL(query: query)
                 activeTab.navigate(to: searchURL)
             case .photon:
-                // Use Photon Search RAG
+                // Use Photon Search Realtime
                 handlePhotonSearch(query: query)
             }
         }

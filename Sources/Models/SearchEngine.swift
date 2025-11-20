@@ -25,7 +25,7 @@ enum SearchEngine: String, CaseIterable, Identifiable {
         case .google:
             return "Fast and comprehensive search"
         case .photon:
-            return "AI-powered RAG realtime search"
+            return "AI-powered Realtime search"
         }
     }
     
