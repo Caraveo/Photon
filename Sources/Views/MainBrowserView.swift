@@ -253,12 +253,9 @@ struct MainBrowserView: View {
             // Likely a domain
             activeTab.navigate(to: "https://\(query)")
         } else {
-            // Search query - use Google search
+            // Search query - use Google search (no automatic AI)
             let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
             activeTab.navigate(to: "https://www.google.com/search?q=\(encodedQuery)")
-            
-            // Generate 3 different prompts and run them in parallel
-            generateAndRunMultiplePrompts(for: query)
         }
     }
     
@@ -271,19 +268,24 @@ struct MainBrowserView: View {
         // Clear previous cards for this search
         activeTab.aiResponseCards.removeAll()
         
-        // Auto-connect if not already connected
+        // Only proceed if already connected - no auto-connect
         if !aiService.isConnected {
-            print("🔌 [DEBUG] Auto-connecting to AI service...")
-            aiService.connect()
-            // Wait a bit for connection to establish
-            Task {
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                await generatePromptsAfterConnection(query: query, activeTab: activeTab)
+            print("⚠️ [DEBUG] AI service not connected. Please connect in Settings.")
+            await MainActor.run {
+                activeTab.isProcessingAI = false
+                let errorCard = AIResponseCard(
+                    response: "AI service not connected. Please connect in Settings (File → Settings) or click the Connect button.",
+                    relevantURL: nil,
+                    query: query,
+                    promptMode: nil
+                )
+                activeTab.aiResponseCards.insert(errorCard, at: 0)
             }
-        } else {
-            Task {
-                await generatePromptsAfterConnection(query: query, activeTab: activeTab)
-            }
+            return
+        }
+        
+        Task {
+            await generatePromptsAfterConnection(query: query, activeTab: activeTab)
         }
     }
     

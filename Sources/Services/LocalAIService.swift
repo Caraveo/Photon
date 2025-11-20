@@ -201,24 +201,11 @@ class LocalAIService: ObservableObject {
     }
     
     func sendMessage(_ message: String, model: AIModel? = nil) async throws -> AIResponse {
-        // Try to connect if not connected (for local services)
-        if !isConnected {
-            let provider = settings.selectedProvider
-            // Auto-connect for local services (MLX, Ollama)
-            if provider == .mlx || provider == .ollama {
-                await checkConnection()
-                // If still not connected, try one more time after a brief delay
-                if !isConnected {
-                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                    await checkConnection()
-                }
-            }
-        }
-        
+        // Don't auto-connect - user must connect manually
         guard isConnected else {
             let provider = settings.selectedProvider
-            let errorMsg = provider == .mlx ? "MLX service not available. Make sure MLX is running on http://localhost:11973" :
-                          provider == .ollama ? "Ollama service not available. Make sure Ollama is running on http://localhost:11434" :
+            let errorMsg = provider == .mlx ? "MLX service not available. Please connect in Settings or make sure MLX is running on http://localhost:11973" :
+                          provider == .ollama ? "Ollama service not available. Please connect in Settings or make sure Ollama is running on http://localhost:11434" :
                           provider == .openai ? "OpenAI API key not set. Please set it in Settings." :
                           "Mistral API key not set. Please set it in Settings."
             throw AIError.notConnectedWithMessage(errorMsg)
