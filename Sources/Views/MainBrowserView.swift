@@ -14,22 +14,38 @@ struct MainBrowserView: View {
     
     var body: some View {
         GeometryReader { geometry in
+            let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
+            let aiCardsHeight: CGFloat = {
+                if let activeTab = tabManager.activeTab,
+                   (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
+                    return 280
+                }
+                return 0
+            }()
+            let browserTopOffset = tabBarHeight + aiCardsHeight
+            let browserHeight = geometry.size.height - browserTopOffset
+            
             ZStack {
-                // Main browser view - full screen background
+                // Main browser view - positioned below tab bar and AI cards, fills remaining space
                 // Show all tabs but only display the active one (prevents reload)
-                ZStack {
-                    ForEach(tabManager.tabs) { tab in
-                        TabBrowserView(tab: tab)
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .opacity(tab.id == tabManager.activeTabId ? 1 : 0)
-                            .allowsHitTesting(tab.id == tabManager.activeTabId)
-                            .zIndex(tab.id == tabManager.activeTabId ? 1 : 0)
-                    }
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: browserTopOffset)
                     
-                    if tabManager.tabs.isEmpty {
-                        // Placeholder if no tabs
-                        Color(NSColor.windowBackgroundColor)
-                            .frame(width: geometry.size.width, height: geometry.size.height)
+                    ZStack {
+                        ForEach(tabManager.tabs) { tab in
+                            TabBrowserView(tab: tab)
+                                .frame(width: geometry.size.width, height: browserHeight)
+                                .opacity(tab.id == tabManager.activeTabId ? 1 : 0)
+                                .allowsHitTesting(tab.id == tabManager.activeTabId)
+                                .zIndex(tab.id == tabManager.activeTabId ? 1 : 0)
+                        }
+                        
+                        if tabManager.tabs.isEmpty {
+                            // Placeholder if no tabs
+                            Color(NSColor.windowBackgroundColor)
+                                .frame(width: geometry.size.width, height: browserHeight)
+                        }
                     }
                 }
                 .onChange(of: tabManager.activeTabId) { newActiveTabId in
@@ -109,37 +125,42 @@ struct MainBrowserView: View {
                     Spacer() // Push everything else to top
                 }
                 
-                // Unified Search/Input Field - Overlay on browser
-                ZStack {
-                    if !isSearchActive {
-                        // Centered search field - properly centered
-                        UnifiedSearchField(
-                            text: $searchText,
-                            isActive: $isSearchActive,
-                            onSearch: handleSearch,
-                            onAISearch: handleAISearch
-                        )
-                        .frame(width: 700)
-                        .environmentObject(settings)
-                        .transition(.scale.combined(with: .opacity))
-                    } else {
-                        // Bottom search field when active
-                        VStack {
-                            Spacer()
+                // Unified Search/Input Field - Overlay on browser (only in browser area, not over tab bar)
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: browserTopOffset)
+                    
+                    ZStack {
+                        if !isSearchActive {
+                            // Centered search field - properly centered in browser area
                             UnifiedSearchField(
                                 text: $searchText,
                                 isActive: $isSearchActive,
                                 onSearch: handleSearch,
                                 onAISearch: handleAISearch
                             )
-                            .padding(.horizontal, 40)
-                            .padding(.bottom, 40)
+                            .frame(width: 700)
                             .environmentObject(settings)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .transition(.scale.combined(with: .opacity))
+                        } else {
+                            // Bottom search field when active
+                            VStack {
+                                Spacer()
+                                UnifiedSearchField(
+                                    text: $searchText,
+                                    isActive: $isSearchActive,
+                                    onSearch: handleSearch,
+                                    onAISearch: handleAISearch
+                                )
+                                .padding(.horizontal, 40)
+                                .padding(.bottom, 40)
+                                .environmentObject(settings)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
                         }
                     }
+                    .frame(width: geometry.size.width, height: browserHeight)
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
