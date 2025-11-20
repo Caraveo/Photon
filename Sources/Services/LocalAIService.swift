@@ -345,8 +345,14 @@ class LocalAIService: ObservableObject {
                 throw AIError.invalidResponse
             }
             
-            let relevantURL = try await findRelevantURL(for: message, response: content)
-            return AIResponse(response: content, relevantURL: relevantURL, query: message)
+            // Parse MLX response to extract reasoning and answer sections
+            let parsed = MLXResponseParser.parse(content)
+            
+            // Use the answer section (or full content if no markers found)
+            let answer = parsed.answer.isEmpty ? (parsed.reasoning.isEmpty ? content : parsed.reasoning) : parsed.answer
+            
+            let relevantURL = try await findRelevantURL(for: message, response: answer)
+            return AIResponse(response: answer, relevantURL: relevantURL, query: message)
         } catch let error as AIError {
             throw error
         } catch {

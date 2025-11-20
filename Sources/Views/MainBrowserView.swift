@@ -106,7 +106,7 @@ struct MainBrowserView: View {
                                 
                                 // Processing indicator with thinking messages
                                 if activeTab.isProcessingAI {
-                                    ThinkingIndicatorView()
+                                    ThinkingIndicatorView(activeTab: activeTab)
                                         .transition(.move(edge: .trailing).combined(with: .opacity))
                                 }
                             }
@@ -354,15 +354,28 @@ struct MainBrowserView: View {
         
         do {
             let response = try await aiService.sendMessage(prompt, model: selectedModel)
+            
+            // Parse MLX response to extract reasoning if present
+            let parsed = MLXResponseParser.parse(response.response)
+            
             await MainActor.run {
+                // Show reasoning in thinking indicator if available
+                if !parsed.reasoning.isEmpty {
+                    activeTab.currentReasoning = parsed.reasoning
+                }
+                
+                // Use answer section or full response
+                let answer = parsed.answer.isEmpty ? response.response : parsed.answer
+                
                 let notification = AINotification(
-                    response: response.response,
+                    response: answer,
                     relevantURL: response.relevantURL,
                     query: query,
                     promptMode: nil
                 )
                 activeTab.aiNotifications.insert(notification, at: 0)
                 activeTab.isProcessingAI = false
+                activeTab.currentReasoning = "" // Clear reasoning after showing notification
             }
         } catch {
             await MainActor.run {

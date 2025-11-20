@@ -10,6 +10,7 @@ class BrowserTab: ObservableObject, Identifiable {
     @Published var isLoading: Bool = false
     @Published var aiNotifications: [AINotification] = []
     @Published var isProcessingAI: Bool = false
+    @Published var currentReasoning: String = "" // For real-time reasoning display
     @Published var favicon: NSImage?
     var webView: BrowserWebView?
     
