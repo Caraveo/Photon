@@ -69,6 +69,7 @@ struct MainBrowserView: View {
                     // Tab Bar - Only show when there are 2+ tabs
                     if tabManager.tabs.count > 1 {
                         TabBarView(tabManager: tabManager)
+                            .allowsHitTesting(true) // Tab bar should be clickable
                     }
                     
                     // AI Response Cards - Horizontal row below tab bar (for active tab)
@@ -87,17 +88,12 @@ struct MainBrowserView: View {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.secondary)
                                         .font(.title3)
+                                        .frame(width: 32, height: 32)
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.leading, 20)
                                 .contentShape(Rectangle())
-                                .onTapGesture {
-                                    print("🔴 [DEBUG] Close button tapped")
-                                    withAnimation {
-                                        activeTab.aiResponseCards.removeAll()
-                                        activeTab.isProcessingAI = false
-                                    }
-                                }
+                                .allowsHitTesting(true)
                                 
                                 // Horizontal scrollable cards
                                 ScrollView(.horizontal, showsIndicators: false) {
@@ -142,7 +138,6 @@ struct MainBrowserView: View {
                     Spacer()
                         .allowsHitTesting(false) // Allow clicks to pass through to browser
                 }
-                .allowsHitTesting(false) // Default to not blocking browser, only specific elements block
                 
                 // Unified Search/Input Field - Overlay on browser (only in browser area, not over tab bar)
                 // Must not block browser interaction
