@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct MainBrowserView: View {
     init() {
@@ -10,19 +11,21 @@ struct MainBrowserView: View {
     @StateObject private var tabManager = TabManager()
     @State private var searchText: String = ""
     @State private var isSearchActive: Bool = false
-    @State private var aiResponseCards: [AIResponseCard] = []
-    @State private var isProcessingAI: Bool = false
     
     var body: some View {
         VStack(spacing: 0) {
-            // AI Response Cards - Horizontal row at top
-            if !aiResponseCards.isEmpty || isProcessingAI {
+            // Tab Bar - Always on top
+            TabBarView(tabManager: tabManager)
+            
+            // AI Response Cards - Horizontal row below tab bar (for active tab)
+            if let activeTab = tabManager.activeTab,
+               (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
                 VStack(spacing: 0) {
                     HStack(spacing: 16) {
                         // Close button
                         Button(action: {
                             withAnimation {
-                                aiResponseCards.removeAll()
+                                activeTab.aiResponseCards.removeAll()
                             }
                         }) {
                             Image(systemName: "xmark.circle.fill")
@@ -35,16 +38,14 @@ struct MainBrowserView: View {
                         // Horizontal scrollable cards
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 20) {
-                                ForEach(aiResponseCards) { card in
+                                ForEach(activeTab.aiResponseCards) { card in
                                     AIResponseCardView(card: card) { url in
-                                        if let activeTab = tabManager.activeTab {
-                                            activeTab.navigate(to: url.absoluteString)
-                                        }
+                                        activeTab.navigate(to: url.absoluteString)
                                     }
                                     .transition(.move(edge: .top).combined(with: .opacity))
                                 }
                                 
-                                if isProcessingAI {
+                                if activeTab.isProcessingAI {
                                     HStack(spacing: 12) {
                                         ProgressView()
                                             .scaleEffect(0.8)
@@ -71,9 +72,6 @@ struct MainBrowserView: View {
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
-            
-            // Tab Bar
-            TabBarView(tabManager: tabManager)
             
             // Main browser view - pushed down when cards are visible
             if let activeTab = tabManager.activeTab {
@@ -125,13 +123,24 @@ struct MainBrowserView: View {
             tabManager.createNewTab()
         }
         .background(
-            // Handle CMD+T keyboard shortcut
+            // Handle CMD+T (or CTRL+T) keyboard shortcut
             Button("New Tab") {
                 tabManager.createNewTab()
             }
-            .keyboardShortcut("t", modifiers: .command)
+            .keyboardShortcut("t", modifiers: [.command])
             .hidden()
         )
+        .onAppear {
+            // Also handle CTRL+T for Windows/Linux compatibility
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if (event.modifierFlags.contains(.control) || event.modifierFlags.contains(.command)) 
+                    && event.charactersIgnoringModifiers?.lowercased() == "t" {
+                    tabManager.createNewTab()
+                    return nil
+                }
+                return event
+            }
+        }
     }
     
     private func handleSearch() {
@@ -161,11 +170,13 @@ struct MainBrowserView: View {
     }
     
     private func generateAndRunMultiplePrompts(for query: String) {
+        guard let activeTab = tabManager.activeTab else { return }
+        
         print("🎯 [DEBUG] Generating 3 prompts for: \(query)")
-        isProcessingAI = true
+        activeTab.isProcessingAI = true
         
         // Clear previous cards for this search
-        aiResponseCards.removeAll()
+        activeTab.aiResponseCards.removeAll()
         
         // Generate 3 different prompts
         let prompts = PromptGenerator.generatePrompts(from: query)
@@ -207,7 +218,7 @@ struct MainBrowserView: View {
                                 query: query,
                                 promptMode: mode
                             )
-                            aiResponseCards.insert(card, at: 0) // Insert at top
+                            activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
                             print("✅ [DEBUG] Received response for \(mode.rawValue) mode (\(completedCount)/\(totalPrompts))")
                             
                         case .failure(let error):
@@ -218,12 +229,12 @@ struct MainBrowserView: View {
                                 query: query,
                                 promptMode: mode
                             )
-                            aiResponseCards.insert(errorCard, at: 0)
+                            activeTab.aiResponseCards.insert(errorCard, at: 0)
                         }
                         
                         // Check if all requests are done
                         if completedCount >= totalPrompts {
-                            isProcessingAI = false
+                            activeTab.isProcessingAI = false
                             print("✨ [DEBUG] All \(totalPrompts) responses completed")
                         }
                     }

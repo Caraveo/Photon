@@ -8,6 +8,8 @@ class BrowserTab: ObservableObject, Identifiable {
     @Published var canGoBack: Bool = false
     @Published var canGoForward: Bool = false
     @Published var isLoading: Bool = false
+    @Published var aiResponseCards: [AIResponseCard] = []
+    @Published var isProcessingAI: Bool = false
     var webView: BrowserWebView?
     
     init(url: URL? = nil) {

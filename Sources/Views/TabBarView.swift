@@ -5,30 +5,39 @@ struct TabBarView: View {
     @State private var draggedTab: BrowserTab?
     
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(tabManager.tabs) { tab in
-                    TabView(tab: tab, isActive: tab.id == tabManager.activeTabId) {
-                        tabManager.switchToTab(tab)
-                    } onClose: {
-                        tabManager.closeTab(tab)
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(tabManager.tabs) { tab in
+                        TabView(tab: tab, isActive: tab.id == tabManager.activeTabId) {
+                            tabManager.switchToTab(tab)
+                        } onClose: {
+                            tabManager.closeTab(tab)
+                        }
                     }
                 }
-                
-                // New Tab Button
+                .padding(.horizontal, 12)
+            }
+            
+            // New Tab Button - Only show if there's only one tab
+            if tabManager.tabs.count == 1 {
                 Button(action: {
                     tabManager.createNewTab()
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 12))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
-                        .frame(width: 30, height: 32)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Circle()
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
                 }
                 .buttonStyle(.plain)
-                .padding(.leading, 4)
+                .padding(.trailing, 12)
             }
         }
-        .frame(height: 36)
+        .frame(height: 48)
         .background(Color(NSColor.controlBackgroundColor))
         .overlay(
             Rectangle()
@@ -47,47 +56,51 @@ struct TabView: View {
     @State private var isHovered: Bool = false
     
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 10) {
             // Tab icon or loading indicator
             if tab.isLoading {
                 ProgressView()
-                    .scaleEffect(0.6)
-                    .frame(width: 12, height: 12)
+                    .scaleEffect(0.7)
+                    .frame(width: 16, height: 16)
             } else {
                 Image(systemName: "globe")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                    .frame(width: 12, height: 12)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isActive ? .blue : .secondary)
+                    .frame(width: 16, height: 16)
             }
             
             // Tab title
             Text(tab.title)
-                .font(.system(size: 12))
+                .font(.system(size: 13, weight: isActive ? .semibold : .regular))
                 .lineLimit(1)
                 .foregroundColor(isActive ? .primary : .secondary)
-                .frame(maxWidth: 150)
+                .frame(maxWidth: 180)
             
             // Close button
             if isHovered || isActive {
                 Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9))
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .frame(width: 16, height: 16)
+                .frame(width: 18, height: 18)
+                .onHover { hovering in
+                    // Add hover effect for close button
+                }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .frame(height: 32)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(height: 40)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(isActive ? Color(NSColor.windowBackgroundColor) : Color.clear)
+                .shadow(color: isActive ? Color.black.opacity(0.05) : Color.clear, radius: 2, y: 1)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(isActive ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isActive ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1.5)
         )
         .onHover { hovering in
             isHovered = hovering
