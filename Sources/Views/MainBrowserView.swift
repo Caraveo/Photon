@@ -104,7 +104,7 @@ struct MainBrowserView: View {
             // Unified Search/Input Field - Overlay on browser
             ZStack {
                 if !isSearchActive {
-                    // Centered search field
+                    // Centered search field - properly centered
                     UnifiedSearchField(
                         text: $searchText,
                         isActive: $isSearchActive,
@@ -115,7 +115,7 @@ struct MainBrowserView: View {
                     .environmentObject(settings)
                     .transition(.scale.combined(with: .opacity))
                 } else {
-                    // Bottom search field
+                    // Bottom search field when active
                     VStack {
                         Spacer()
                         UnifiedSearchField(
@@ -131,6 +131,7 @@ struct MainBrowserView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -166,10 +167,14 @@ struct MainBrowserView: View {
     private func handleSearch() {
         guard !searchText.isEmpty else { return }
         print("🔍 [DEBUG] Handling search: \(searchText)")
-        isSearchActive = true
         
         let query = searchText
         searchText = ""
+        
+        // Reset search field to centered after search
+        withAnimation {
+            isSearchActive = false
+        }
         
         // Determine if it's a URL or search query
         guard let activeTab = tabManager.activeTab else { return }
@@ -267,7 +272,11 @@ struct MainBrowserView: View {
         guard !searchText.isEmpty else { return }
         let query = searchText
         searchText = ""
-        isSearchActive = true
+        
+        // Reset search field to centered after AI search
+        withAnimation {
+            isSearchActive = false
+        }
         
         // Use the same multi-prompt system for AI search
         generateAndRunMultiplePrompts(for: query)
@@ -316,8 +325,19 @@ struct UnifiedSearchField: View {
                     onSearch()
                 }
                 .onTapGesture {
-                    withAnimation {
-                        isActive = true
+                    // Only activate when user clicks, not on focus
+                    if !isActive {
+                        withAnimation {
+                            isActive = true
+                        }
+                    }
+                }
+                .onChange(of: isFocused) { focused in
+                    // Move to bottom when focused/typing
+                    if focused && !isActive {
+                        withAnimation {
+                            isActive = true
+                        }
                     }
                 }
             
