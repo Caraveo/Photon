@@ -45,8 +45,10 @@ struct MainBrowserView: View {
                 
                 // Overlay content on top of browser
                 VStack(spacing: 0) {
-                    // Tab Bar - Always on top
-                    TabBarView(tabManager: tabManager)
+                    // Tab Bar - Only show when there are 2+ tabs
+                    if tabManager.tabs.count > 1 {
+                        TabBarView(tabManager: tabManager)
+                    }
                     
                     // AI Response Cards - Horizontal row below tab bar (for active tab)
                     if let activeTab = tabManager.activeTab,

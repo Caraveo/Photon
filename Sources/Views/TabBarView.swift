@@ -19,8 +19,8 @@ struct TabBarView: View {
                 .padding(.horizontal, 12)
             }
             
-            // New Tab Button - Only show if there's only one tab
-            if tabManager.tabs.count == 1 {
+            // New Tab Button - Only show if there are 2+ tabs (tab bar is visible)
+            if tabManager.tabs.count > 1 {
                 Button(action: {
                     tabManager.createNewTab()
                 }) {
