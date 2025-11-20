@@ -15,7 +15,13 @@ struct TabBrowserWebViewRepresentable: NSViewRepresentable {
     @ObservedObject var tab: BrowserTab
     
     func makeNSView(context: Context) -> BrowserWebView {
-        print("🌐 [DEBUG] Creating BrowserWebView for tab: \(tab.id)")
+        // Only create web view if it doesn't exist
+        if let existingWebView = tab.webView {
+            print("🌐 [DEBUG] Reusing existing BrowserWebView for tab: \(tab.id)")
+            return existingWebView
+        }
+        
+        print("🌐 [DEBUG] Creating new BrowserWebView for tab: \(tab.id)")
         let webView = BrowserWebView()
         webView.setTab(tab)
         tab.setWebView(webView)
@@ -33,7 +39,15 @@ struct TabBrowserWebViewRepresentable: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: BrowserWebView, context: Context) {
-        // Updates handled by BrowserWebView
+        // Ensure the web view is still connected to the tab
+        // Check if tab needs to be set (using a helper method)
+        if let currentTab = nsView.getTab(), currentTab.id != tab.id {
+            nsView.setTab(tab)
+            tab.setWebView(nsView)
+        } else if nsView.getTab() == nil {
+            nsView.setTab(tab)
+            tab.setWebView(nsView)
+        }
     }
 }
 

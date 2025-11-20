@@ -74,14 +74,31 @@ struct MainBrowserView: View {
             }
             
             // Main browser view - full screen, pushed down when cards are visible
-            if let activeTab = tabManager.activeTab {
-                TabBrowserView(tab: activeTab)
-                    .id(activeTab.id) // Force view update on tab switch
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Placeholder if no active tab
-                Color(NSColor.windowBackgroundColor)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Show all tabs but only display the active one (prevents reload)
+            ZStack {
+                ForEach(tabManager.tabs) { tab in
+                    TabBrowserView(tab: tab)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .opacity(tab.id == tabManager.activeTabId ? 1 : 0)
+                        .allowsHitTesting(tab.id == tabManager.activeTabId)
+                        .zIndex(tab.id == tabManager.activeTabId ? 1 : 0)
+                }
+                
+                if tabManager.tabs.isEmpty {
+                    // Placeholder if no tabs
+                    Color(NSColor.windowBackgroundColor)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .onChange(of: tabManager.activeTabId) { newActiveTabId in
+                // Pause inactive tabs and resume active tab
+                for tab in tabManager.tabs {
+                    if tab.id == newActiveTabId {
+                        tab.resume()
+                    } else {
+                        tab.pause()
+                    }
+                }
             }
             
             // Unified Search/Input Field - Overlay on browser

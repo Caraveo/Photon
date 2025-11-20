@@ -27,6 +27,10 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     private var browserState: BrowserState?
     private var tab: BrowserTab?
     
+    func getTab() -> BrowserTab? {
+        return tab
+    }
+    
     override init(frame: CGRect = .zero, configuration: WKWebViewConfiguration = WKWebViewConfiguration()) {
         let config = WKWebViewConfiguration()
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
@@ -114,5 +118,68 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         decisionHandler(.allow)
+    }
+    
+    // MARK: - Tab Freeze/Pause Methods
+    
+    func pauseExecution() {
+        print("⏸️ [DEBUG] Pausing tab execution")
+        // Pause JavaScript execution by evaluating a script that stops timers
+        let pauseScript = """
+        (function() {
+            if (window._photonPaused) return;
+            window._photonPaused = true;
+            
+            // Store original setTimeout/setInterval
+            window._originalSetTimeout = window.setTimeout;
+            window._originalSetInterval = window.setInterval;
+            window._originalRequestAnimationFrame = window.requestAnimationFrame;
+            
+            // Override to prevent execution
+            window.setTimeout = function() { return 0; };
+            window.setInterval = function() { return 0; };
+            window.requestAnimationFrame = function() { return 0; };
+            
+            // Pause media elements
+            document.querySelectorAll('video, audio').forEach(function(media) {
+                if (!media.paused) {
+                    media.pause();
+                    media.dataset._photonWasPlaying = 'true';
+                }
+            });
+        })();
+        """
+        evaluateJavaScript(pauseScript, completionHandler: nil)
+    }
+    
+    func resumeExecution() {
+        print("▶️ [DEBUG] Resuming tab execution")
+        // Resume JavaScript execution
+        let resumeScript = """
+        (function() {
+            if (!window._photonPaused) return;
+            window._photonPaused = false;
+            
+            // Restore original functions
+            if (window._originalSetTimeout) {
+                window.setTimeout = window._originalSetTimeout;
+            }
+            if (window._originalSetInterval) {
+                window.setInterval = window._originalSetInterval;
+            }
+            if (window._originalRequestAnimationFrame) {
+                window.requestAnimationFrame = window._originalRequestAnimationFrame;
+            }
+            
+            // Resume media elements
+            document.querySelectorAll('video, audio').forEach(function(media) {
+                if (media.dataset._photonWasPlaying === 'true') {
+                    media.play().catch(function() {});
+                    delete media.dataset._photonWasPlaying;
+                }
+            });
+        })();
+        """
+        evaluateJavaScript(resumeScript, completionHandler: nil)
     }
 }

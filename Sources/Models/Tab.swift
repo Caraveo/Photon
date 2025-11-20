@@ -43,6 +43,16 @@ class BrowserTab: ObservableObject, Identifiable {
     func reload() {
         webView?.reload()
     }
+    
+    func pause() {
+        // Pause JavaScript execution and media playback
+        webView?.pauseExecution()
+    }
+    
+    func resume() {
+        // Resume JavaScript execution and media playback
+        webView?.resumeExecution()
+    }
 }
 
 class TabManager: ObservableObject {
@@ -85,6 +95,14 @@ class TabManager: ObservableObject {
     }
     
     func switchToTab(_ tab: BrowserTab) {
+        // Pause the previously active tab
+        if let previousTab = activeTab, previousTab.id != tab.id {
+            previousTab.pause()
+        }
+        
+        // Resume the new active tab
+        tab.resume()
+        
         activeTabId = tab.id
     }
 }
