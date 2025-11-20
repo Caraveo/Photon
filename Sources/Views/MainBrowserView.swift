@@ -14,6 +14,7 @@ struct MainBrowserView: View {
     @State private var hideTimer: Timer?
     @State private var isScrolling: Bool = false
     @State private var inactivityTimer: Timer?
+    @State private var shouldShowCentered: Bool = true // Show centered on launch/new tab
     
     var body: some View {
         GeometryReader { geometry in
@@ -144,8 +145,8 @@ struct MainBrowserView: View {
                         .allowsHitTesting(false) // Don't block browser
                     
                     ZStack {
-                        if !isSearchActive {
-                            // Centered search field - properly centered in browser area
+                        if !isSearchActive && shouldShowCentered {
+                            // Centered search field - only on new tab or launch
                             UnifiedSearchField(
                                 text: $searchText,
                                 isActive: $isSearchActive,
@@ -159,8 +160,14 @@ struct MainBrowserView: View {
                             .scaleEffect(isSearchFieldVisible ? 1 : 0.95)
                             .transition(.scale.combined(with: .opacity))
                             .allowsHitTesting(isSearchFieldVisible) // Only block when visible
+                            .onChange(of: isSearchActive) { active in
+                                // Switch from centered to positioned mode when user activates search
+                                if active {
+                                    shouldShowCentered = false
+                                }
+                            }
                         } else {
-                            // Positioned search field when active (TOP or BOTTOM based on settings)
+                            // Positioned search field (TOP or BOTTOM based on settings) - when active or after first interaction
                             VStack {
                                 if settings.searchFieldPosition == .bottom {
                                     Spacer()
@@ -176,6 +183,7 @@ struct MainBrowserView: View {
                                 .padding(.horizontal, 40)
                                 .padding(settings.searchFieldPosition == .top ? .top : .bottom, 40)
                                 .environmentObject(settings)
+                                .opacity(isSearchActive || isSearchFieldVisible ? 1 : 0)
                                 .transition(.move(edge: settings.searchFieldPosition == .top ? .top : .bottom).combined(with: .opacity))
                                 
                                 if settings.searchFieldPosition == .top {
@@ -186,6 +194,12 @@ struct MainBrowserView: View {
                     }
                     .frame(width: geometry.size.width, height: browserHeight)
                     .allowsHitTesting(isSearchActive || isSearchFieldVisible) // Only block when search is active or visible
+                    .onChange(of: isSearchActive) { active in
+                        // Switch from centered to positioned mode when user activates search
+                        if active {
+                            shouldShowCentered = false
+                        }
+                    }
                     .onHover { hovering in
                         if let window = NSApplication.shared.windows.first {
                             let windowLocation = NSEvent.mouseLocation
@@ -215,11 +229,15 @@ struct MainBrowserView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NewTab"))) { _ in
             tabManager.createNewTab()
+            // Show centered on new tab
+            shouldShowCentered = true
         }
         .background(
             // Handle CMD+T (or CTRL+T) keyboard shortcut
             Button("New Tab") {
                 tabManager.createNewTab()
+                // Show centered on new tab
+                shouldShowCentered = true
             }
             .keyboardShortcut("t", modifiers: [.command])
             .hidden()
@@ -230,6 +248,8 @@ struct MainBrowserView: View {
                 if (event.modifierFlags.contains(.control) || event.modifierFlags.contains(.command)) 
                     && event.charactersIgnoringModifiers?.lowercased() == "t" {
                     tabManager.createNewTab()
+                    // Show centered on new tab
+                    shouldShowCentered = true
                     return nil
                 }
                 return event
@@ -668,7 +688,7 @@ struct UnifiedSearchField: View {
                     }
                 }
                 .onChange(of: isFocused) { focused in
-                    // Move to bottom when focused/typing
+                    // Move to positioned mode when focused/typing
                     if focused && !isActive {
                         withAnimation {
                             isActive = true
