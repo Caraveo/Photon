@@ -4,7 +4,7 @@
 
 **The Mac-Exclusive Browser That Gets Out of Your Way**
 
-![Photon Browser](Vision.heic)
+![Photon Browser](Vision.jpg)
 
 *Focus on your web content. The best interface is #NoInterface.*
 
@@ -66,11 +66,11 @@ swift build -c release
 
 <div align="center">
 
-![Photon Vision](Vision.heic)
+![Photon Vision](Vision.jpg)
 
 *Clean, focused, beautiful.*
 
-![Photon Microsoft](Microsoft.heic)
+![Photon Microsoft](Microsoft.jpg)
 
 *Your content, front and center.*
 
