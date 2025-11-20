@@ -44,11 +44,13 @@ class AISettings: ObservableObject {
     @Published var openAIKey: String = ""
     @Published var mistralKey: String = ""
     @Published var availableModels: [AIModel] = AIModel.defaultModels
+    @Published var hideAIServiceInSearch: Bool = false
     
     private let openAIKeyKey = "openai_api_key"
     private let mistralKeyKey = "mistral_api_key"
     private let selectedProviderKey = "selected_ai_provider"
     private let selectedModelKey = "selected_ai_model"
+    private let hideAIServiceKey = "hide_ai_service_in_search"
     
     init() {
         loadSettings()
@@ -76,6 +78,9 @@ class AISettings: ObservableObject {
            let model = availableModels.first(where: { $0.id == modelId }) {
             selectedModel = model
         }
+        
+        // Load hide AI service setting
+        hideAIServiceInSearch = UserDefaults.standard.bool(forKey: hideAIServiceKey)
     }
     
     func saveOpenAIKey(_ key: String) {
@@ -101,6 +106,11 @@ class AISettings: ObservableObject {
     func setModel(_ model: AIModel) {
         selectedModel = model
         UserDefaults.standard.set(model.id, forKey: selectedModelKey)
+    }
+    
+    func setHideAIServiceInSearch(_ hide: Bool) {
+        hideAIServiceInSearch = hide
+        UserDefaults.standard.set(hide, forKey: hideAIServiceKey)
     }
 }
 

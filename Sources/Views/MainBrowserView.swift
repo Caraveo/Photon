@@ -7,7 +7,7 @@ struct MainBrowserView: View {
     }
     @EnvironmentObject var browserState: BrowserState
     @EnvironmentObject var aiService: LocalAIService
-    @StateObject private var settings = AISettings()
+    @EnvironmentObject var settings: AISettings
     @StateObject private var tabManager = TabManager()
     @State private var searchText: String = ""
     @State private var isSearchActive: Bool = false
@@ -327,21 +327,23 @@ struct UnifiedSearchField: View {
     
     var body: some View {
         HStack(spacing: 8) {
-            // Discreet Model Selector Dropdown
-            ModelSelectorDropdown(
-                selectedModel: $settings.selectedModel,
-                availableModels: aiService.availableModels.filter { $0.provider == settings.selectedProvider },
-                selectedProvider: $settings.selectedProvider,
-                settings: settings,
-                onProviderChange: { newProvider in
-                    settings.setProvider(newProvider)
-                    // Don't auto-connect - user must connect manually
-                },
-                onAPIKeyNeeded: {
-                    showAPIKeyDialog = true
-                }
-            )
-            .frame(width: 140)
+            // Discreet Model Selector Dropdown - only show if not hidden in settings
+            if !settings.hideAIServiceInSearch {
+                ModelSelectorDropdown(
+                    selectedModel: $settings.selectedModel,
+                    availableModels: aiService.availableModels.filter { $0.provider == settings.selectedProvider },
+                    selectedProvider: $settings.selectedProvider,
+                    settings: settings,
+                    onProviderChange: { newProvider in
+                        settings.setProvider(newProvider)
+                        // Don't auto-connect - user must connect manually
+                    },
+                    onAPIKeyNeeded: {
+                        showAPIKeyDialog = true
+                    }
+                )
+                .frame(width: 140)
+            }
             
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)

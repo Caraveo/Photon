@@ -129,7 +129,7 @@ class LocalAIService: ObservableObject {
         }
     }
     
-    private func fetchAvailableModels() async {
+    func fetchAvailableModels() async {
         let provider = settings.selectedProvider
         let baseURL = URL(string: provider.baseURL)!
         
