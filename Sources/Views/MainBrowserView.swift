@@ -271,16 +271,14 @@ struct MainBrowserView: View {
         // Only proceed if already connected - no auto-connect
         if !aiService.isConnected {
             print("⚠️ [DEBUG] AI service not connected. Please connect in Settings.")
-            await MainActor.run {
-                activeTab.isProcessingAI = false
-                let errorCard = AIResponseCard(
-                    response: "AI service not connected. Please connect in Settings (File → Settings) or click the Connect button.",
-                    relevantURL: nil,
-                    query: query,
-                    promptMode: nil
-                )
-                activeTab.aiResponseCards.insert(errorCard, at: 0)
-            }
+            activeTab.isProcessingAI = false
+            let errorCard = AIResponseCard(
+                response: "AI service not connected. Please connect in Settings (File → Settings) or click the Connect button.",
+                relevantURL: nil,
+                query: query,
+                promptMode: nil
+            )
+            activeTab.aiResponseCards.insert(errorCard, at: 0)
             return
         }
         
