@@ -1,0 +1,567 @@
+import SwiftUI
+
+struct OnboardingView: View {
+    @ObservedObject var settings: AISettings
+    @ObservedObject var aiService: LocalAIService
+    @State private var currentStep: OnboardingStep = .searchEngine
+    @State private var selectedSearchEngine: SearchEngine = .google
+    @State private var selectedAICategory: AICategory = .local
+    @State private var selectedProvider: AIProvider = .ollama
+    @State private var selectedModel: AIModel?
+    @State private var isConnecting: Bool = false
+    
+    var body: some View {
+        ZStack {
+            // Background gradient
+            LinearGradient(
+                colors: [
+                    Color(NSColor.windowBackgroundColor),
+                    Color(NSColor.windowBackgroundColor).opacity(0.8)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Progress indicator
+                if currentStep != .complete {
+                    ProgressView(value: currentStep.progress)
+                        .progressViewStyle(.linear)
+                        .frame(height: 4)
+                        .padding(.horizontal, 40)
+                        .padding(.top, 20)
+                }
+                
+                // Content
+                ScrollView {
+                    VStack(spacing: 40) {
+                        // Header
+                        VStack(spacing: 12) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 60))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            
+                            Text("Welcome to Photon")
+                                .font(.system(size: 42, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text("Let's set up your browsing experience")
+                                .font(.system(size: 18))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 60)
+                        
+                        // Step content
+                        switch currentStep {
+                        case .searchEngine:
+                            searchEngineSelection
+                        case .aiModel:
+                            aiModelSelection
+                        case .complete:
+                            completionView
+                        }
+                    }
+                    .frame(maxWidth: 800)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 60)
+                }
+            }
+        }
+        .frame(width: 900, height: 700)
+    }
+    
+    // MARK: - Search Engine Selection
+    
+    private var searchEngineSelection: some View {
+        VStack(spacing: 30) {
+            Text("Choose Your Search Engine")
+                .font(.system(size: 28, weight: .semibold))
+                .padding(.bottom, 10)
+            
+            HStack(spacing: 24) {
+                ForEach(SearchEngine.allCases) { engine in
+                    SearchEngineCard(
+                        engine: engine,
+                        isSelected: selectedSearchEngine == engine
+                    ) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedSearchEngine = engine
+                        }
+                    }
+                }
+            }
+            
+            Button(action: {
+                settings.setSearchEngine(selectedSearchEngine)
+                withAnimation {
+                    currentStep = .aiModel
+                }
+            }) {
+                Text("Continue")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 20)
+        }
+    }
+    
+    // MARK: - AI Model Selection
+    
+    private var aiModelSelection: some View {
+        VStack(spacing: 30) {
+            Text("Choose Your AI")
+                .font(.system(size: 28, weight: .semibold))
+                .padding(.bottom, 10)
+            
+            // AI Category Selection
+            HStack(spacing: 20) {
+                AICategoryCard(
+                    category: .local,
+                    isSelected: selectedAICategory == .local
+                ) {
+                    withAnimation {
+                        selectedAICategory = .local
+                        // Auto-select first local provider
+                        if let firstLocal = AIProvider.allCases.first(where: { $0 == .ollama || $0 == .mlx }) {
+                            selectedProvider = firstLocal
+                        }
+                    }
+                }
+                
+                AICategoryCard(
+                    category: .cloud,
+                    isSelected: selectedAICategory == .cloud
+                ) {
+                    withAnimation {
+                        selectedAICategory = .cloud
+                        // Auto-select first cloud provider
+                        if let firstCloud = AIProvider.allCases.first(where: { $0 == .openai || $0 == .mistral }) {
+                            selectedProvider = firstCloud
+                        }
+                    }
+                }
+            }
+            
+            // Provider Selection
+            if selectedAICategory == .local {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Local AI Provider")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 16) {
+                        ForEach([AIProvider.ollama, AIProvider.mlx]) { provider in
+                            ProviderCard(
+                                provider: provider,
+                                isSelected: selectedProvider == provider
+                            ) {
+                                withAnimation {
+                                    selectedProvider = provider
+                                    selectedModel = nil
+                                }
+                                Task {
+                                    await connectToProvider(provider)
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Cloud AI Provider")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 16) {
+                        ForEach([AIProvider.openai, AIProvider.mistral]) { provider in
+                            ProviderCard(
+                                provider: provider,
+                                isSelected: selectedProvider == provider
+                            ) {
+                                withAnimation {
+                                    selectedProvider = provider
+                                    selectedModel = nil
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Model Selection
+            if let models = getAvailableModels(for: selectedProvider), !models.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Select Model")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(models) { model in
+                                ModelCard(
+                                    model: model,
+                                    isSelected: selectedModel?.id == model.id
+                                ) {
+                                    withAnimation {
+                                        selectedModel = model
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                }
+            }
+            
+            // Action buttons
+            HStack(spacing: 16) {
+                Button(action: {
+                    withAnimation {
+                        currentStep = .searchEngine
+                    }
+                }) {
+                    Text("Back")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    if let model = selectedModel {
+                        settings.setProvider(selectedProvider)
+                        settings.setModel(model)
+                    }
+                    settings.completeOnboarding()
+                    withAnimation {
+                        currentStep = .complete
+                    }
+                }) {
+                    HStack {
+                        if isConnecting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                        }
+                        Text(isConnecting ? "Connecting..." : "Complete Setup")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedModel == nil || isConnecting)
+            }
+            .padding(.top, 20)
+        }
+    }
+    
+    // MARK: - Completion View
+    
+    private var completionView: some View {
+        VStack(spacing: 30) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 80))
+                .foregroundColor(.green)
+            
+            Text("You're All Set!")
+                .font(.system(size: 32, weight: .bold))
+            
+            Text("Photon is ready to use. Start browsing with your personalized settings.")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            Button(action: {
+                settings.completeOnboarding()
+                // Connect to AI service if not already connected
+                aiService.connect()
+            }) {
+                Text("Start Browsing")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 20)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getAvailableModels(for provider: AIProvider) -> [AIModel]? {
+        return aiService.availableModels.filter { $0.provider == provider }
+    }
+    
+    private func connectToProvider(_ provider: AIProvider) async {
+        await MainActor.run {
+            isConnecting = true
+        }
+        
+        // Connect to provider
+        aiService.connect()
+        
+        // Wait a bit for models to load
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
+        await MainActor.run {
+            isConnecting = false
+            // Auto-select first model if available
+            if let models = getAvailableModels(for: provider),
+               let firstModel = models.first,
+               selectedModel == nil {
+                selectedModel = firstModel
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct SearchEngineCard: View {
+    let engine: SearchEngine
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 20) {
+                Image(systemName: engine.icon)
+                    .font(.system(size: 48))
+                    .foregroundColor(isSelected ? .white : .blue)
+                    .frame(width: 100, height: 100)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? 
+                                LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing) :
+                                LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                    )
+                
+                Text(engine.rawValue)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(engine.description)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(width: 220, height: 240)
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(NSColor.windowBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(isSelected ? 
+                                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
+                                LinearGradient(colors: [Color.clear], startPoint: .leading, endPoint: .trailing),
+                                lineWidth: isSelected ? 3 : 0
+                            )
+                    )
+                    .shadow(color: isSelected ? .blue.opacity(0.3) : .black.opacity(0.1), radius: isSelected ? 10 : 5, x: 0, y: 4)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct AICategoryCard: View {
+    let category: AICategory
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 16) {
+                Image(systemName: category.icon)
+                    .font(.system(size: 40))
+                    .foregroundColor(isSelected ? .white : category.color)
+                    .frame(width: 80, height: 80)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? 
+                                LinearGradient(colors: [category.color, category.color.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing) :
+                                LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                    )
+                
+                Text(category.title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(category.description)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(NSColor.windowBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isSelected ? category.color : Color.clear, lineWidth: 2)
+                    )
+                    .shadow(color: isSelected ? category.color.opacity(0.2) : .black.opacity(0.05), radius: 8, x: 0, y: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct ProviderCard: View {
+    let provider: AIProvider
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: provider == .ollama ? "server.rack" : provider == .mlx ? "cpu" : "cloud")
+                    .font(.system(size: 20))
+                    .foregroundColor(isSelected ? .white : .blue)
+                
+                Text(provider.rawValue)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected ? 
+                        LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
+                        LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .leading, endPoint: .trailing)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? Color.clear : Color(NSColor.separatorColor), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct ModelCard: View {
+    let model: AIModel
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(model.name)
+                .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                .foregroundColor(isSelected ? .white : .primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? 
+                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
+                            LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .leading, endPoint: .trailing)
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? Color.clear : Color(NSColor.separatorColor), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Enums
+
+enum OnboardingStep {
+    case searchEngine
+    case aiModel
+    case complete
+    
+    var progress: Double {
+        switch self {
+        case .searchEngine: return 0.33
+        case .aiModel: return 0.66
+        case .complete: return 1.0
+        }
+    }
+}
+
+enum AICategory {
+    case local
+    case cloud
+    
+    var title: String {
+        switch self {
+        case .local: return "Local AI"
+        case .cloud: return "Cloud AI"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .local: return "Runs on your Mac\nPrivate & Fast"
+        case .cloud: return "Powered by APIs\nAdvanced Models"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .local: return "cpu"
+        case .cloud: return "cloud"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .local: return .green
+        case .cloud: return .blue
+        }
+    }
+}
+

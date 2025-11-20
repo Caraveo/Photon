@@ -1,5 +1,10 @@
 import Foundation
 
+// Import SearchEngine
+extension AISettings {
+    // SearchEngine is defined in SearchEngine.swift
+}
+
 enum SearchFieldPosition: String, CaseIterable, Identifiable {
     case top = "Top"
     case bottom = "Bottom"
@@ -53,6 +58,8 @@ class AISettings: ObservableObject {
     @Published var availableModels: [AIModel] = AIModel.defaultModels
     @Published var hideAIServiceInSearch: Bool = false
     @Published var searchFieldPosition: SearchFieldPosition = .bottom
+    @Published var selectedSearchEngine: SearchEngine = .google
+    @Published var hasCompletedOnboarding: Bool = false
     
     private let openAIKeyKey = "openai_api_key"
     private let mistralKeyKey = "mistral_api_key"
@@ -60,6 +67,8 @@ class AISettings: ObservableObject {
     private let selectedModelKey = "selected_ai_model"
     private let hideAIServiceKey = "hide_ai_service_in_search"
     private let searchFieldPositionKey = "search_field_position"
+    private let selectedSearchEngineKey = "selected_search_engine"
+    private let hasCompletedOnboardingKey = "has_completed_onboarding"
     
     init() {
         loadSettings()
@@ -99,6 +108,15 @@ class AISettings: ObservableObject {
            let position = SearchFieldPosition(rawValue: positionString) {
             searchFieldPosition = position
         }
+        
+        // Load selected search engine
+        if let engineString = UserDefaults.standard.string(forKey: selectedSearchEngineKey),
+           let engine = SearchEngine(rawValue: engineString) {
+            selectedSearchEngine = engine
+        }
+        
+        // Load onboarding status
+        hasCompletedOnboarding = UserDefaults.standard.bool(forKey: hasCompletedOnboardingKey)
     }
     
     func saveOpenAIKey(_ key: String) {
@@ -139,6 +157,18 @@ class AISettings: ObservableObject {
     func setSearchFieldPosition(_ position: SearchFieldPosition) {
         searchFieldPosition = position
         UserDefaults.standard.set(position.rawValue, forKey: searchFieldPositionKey)
+        UserDefaults.standard.synchronize()
+    }
+    
+    func setSearchEngine(_ engine: SearchEngine) {
+        selectedSearchEngine = engine
+        UserDefaults.standard.set(engine.rawValue, forKey: selectedSearchEngineKey)
+        UserDefaults.standard.synchronize()
+    }
+    
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        UserDefaults.standard.set(true, forKey: hasCompletedOnboardingKey)
         UserDefaults.standard.synchronize()
     }
 }

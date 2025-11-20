@@ -17,6 +17,17 @@ struct MainBrowserView: View {
     @State private var shouldShowCentered: Bool = true // Show centered on launch/new tab
     
     var body: some View {
+        Group {
+            if !settings.hasCompletedOnboarding {
+                // Show onboarding on first launch
+                OnboardingView(settings: settings, aiService: aiService)
+            } else {
+                mainBrowserContent
+            }
+        }
+    }
+    
+    private var mainBrowserContent: some View {
         GeometryReader { geometry in
             let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
             let aiCardsHeight: CGFloat = {
@@ -278,9 +289,58 @@ struct MainBrowserView: View {
             // Likely a domain
             activeTab.navigate(to: "https://\(query)")
         } else {
-            // Search query - use Google search (no automatic AI)
-            let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            activeTab.navigate(to: "https://www.google.com/search?q=\(encodedQuery)")
+            // Use selected search engine
+            switch settings.selectedSearchEngine {
+            case .duckduckgo, .google:
+                let searchURL = settings.selectedSearchEngine.buildSearchURL(query: query)
+                activeTab.navigate(to: searchURL)
+            case .photon:
+                // Use Photon Search RAG
+                handlePhotonSearch(query: query)
+            }
+        }
+    }
+    
+    private func handlePhotonSearch(query: String) {
+        guard let activeTab = tabManager.activeTab else { return }
+        
+        // Show loading state
+        activeTab.isProcessingAI = true
+        activeTab.aiResponseCards.removeAll()
+        
+        Task {
+            do {
+                let photonSearch = PhotonSearchService(aiService: aiService)
+                let result = try await photonSearch.search(query: query)
+                
+                await MainActor.run {
+                    // Create AI response card
+                    let card = AIResponseCard(
+                        response: result.aiResponse,
+                        relevantURL: result.relevantURLs.first?.absoluteString,
+                        query: query,
+                        promptMode: nil
+                    )
+                    activeTab.aiResponseCards.append(card)
+                    activeTab.isProcessingAI = false
+                    
+                    // Navigate to first relevant URL if available
+                    if let firstURL = result.relevantURLs.first {
+                        activeTab.navigate(to: firstURL.absoluteString)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    let errorCard = AIResponseCard(
+                        response: "Error performing Photon Search: \(error.localizedDescription)",
+                        relevantURL: nil,
+                        query: query,
+                        promptMode: nil
+                    )
+                    activeTab.aiResponseCards.append(errorCard)
+                    activeTab.isProcessingAI = false
+                }
+            }
         }
     }
     

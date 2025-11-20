@@ -1,0 +1,46 @@
+import Foundation
+
+enum SearchEngine: String, CaseIterable, Identifiable {
+    case duckduckgo = "DuckDuckGo"
+    case google = "Google"
+    case photon = "Photon Search"
+    
+    var id: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .duckduckgo:
+            return "magnifyingglass"
+        case .google:
+            return "globe"
+        case .photon:
+            return "sparkles"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .duckduckgo:
+            return "Privacy-focused search engine"
+        case .google:
+            return "Fast and comprehensive search"
+        case .photon:
+            return "AI-powered RAG realtime search"
+        }
+    }
+    
+    func buildSearchURL(query: String) -> String {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        switch self {
+        case .duckduckgo:
+            return "https://duckduckgo.com/?q=\(encodedQuery)"
+        case .google:
+            return "https://www.google.com/search?q=\(encodedQuery)"
+        case .photon:
+            // Photon Search uses AI, not a URL
+            return ""
+        }
+    }
+}
+
