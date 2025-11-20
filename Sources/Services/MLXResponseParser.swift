@@ -41,52 +41,68 @@ struct MLXResponseParser {
     static func fixSpacing(_ text: String) -> String {
         var fixed = text
         
-        // Add space after period if followed by letter (no space) - but not for decimals or URLs
+        // More aggressive spacing fixes - handle all punctuation followed by letters
+        
+        // Period followed by any letter (uppercase or lowercase)
         fixed = fixed.replacingOccurrences(
-            of: #"\.([A-Z])"#,
+            of: #"\.([A-Za-z])"#,
             with: ". $1",
             options: .regularExpression
         )
         
-        // Add space after period if followed by lowercase letter (but not in URLs or decimals)
-        fixed = fixed.replacingOccurrences(
-            of: #"([a-z])\.([a-z])"#,
-            with: "$1. $2",
-            options: .regularExpression
-        )
-        
-        // Add space after comma if followed by letter (no space)
+        // Comma followed by any letter
         fixed = fixed.replacingOccurrences(
             of: #",([A-Za-z])"#,
             with: ", $1",
             options: .regularExpression
         )
         
-        // Add space after colon if followed by letter (no space)
+        // Colon followed by any letter
         fixed = fixed.replacingOccurrences(
             of: #":([A-Za-z])"#,
             with: ": $1",
             options: .regularExpression
         )
         
-        // Add space after semicolon if followed by letter (no space)
+        // Semicolon followed by any letter
         fixed = fixed.replacingOccurrences(
             of: #";([A-Za-z])"#,
             with: "; $1",
             options: .regularExpression
         )
         
-        // Add space after exclamation if followed by letter (no space)
+        // Exclamation followed by any letter
         fixed = fixed.replacingOccurrences(
             of: #"!([A-Za-z])"#,
             with: "! $1",
             options: .regularExpression
         )
         
-        // Add space after question mark if followed by letter (no space)
+        // Question mark followed by any letter
         fixed = fixed.replacingOccurrences(
             of: #"\?([A-Za-z])"#,
             with: "? $1",
+            options: .regularExpression
+        )
+        
+        // Closing parenthesis followed by any letter
+        fixed = fixed.replacingOccurrences(
+            of: #"\)([A-Za-z])"#,
+            with: ") $1",
+            options: .regularExpression
+        )
+        
+        // Closing bracket followed by any letter
+        fixed = fixed.replacingOccurrences(
+            of: #"\]([A-Za-z])"#,
+            with: "] $1",
+            options: .regularExpression
+        )
+        
+        // Closing brace followed by any letter
+        fixed = fixed.replacingOccurrences(
+            of: #"\}([A-Za-z])"#,
+            with: "} $1",
             options: .regularExpression
         )
         
@@ -99,16 +115,24 @@ struct MLXResponseParser {
         
         // Ensure proper paragraph breaks (double newlines)
         // Convert single newlines in the middle of sentences to spaces
+        // But preserve double newlines for paragraphs
         fixed = fixed.replacingOccurrences(
-            of: #"([a-z])\n([a-z])"#,
+            of: #"([a-z,\.!?;:\)\]\}])\n([a-z])"#,
             with: "$1 $2",
             options: .regularExpression
         )
         
-        // Ensure double newlines for paragraphs
+        // Ensure double newlines for paragraphs (normalize multiple newlines)
         fixed = fixed.replacingOccurrences(
             of: #"\n{3,}"#,
             with: "\n\n",
+            options: .regularExpression
+        )
+        
+        // Clean up any trailing spaces before newlines
+        fixed = fixed.replacingOccurrences(
+            of: #" +\n"#,
+            with: "\n",
             options: .regularExpression
         )
         

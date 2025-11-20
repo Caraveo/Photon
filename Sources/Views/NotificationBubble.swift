@@ -66,8 +66,9 @@ struct NotificationBubble: View {
                     .lineLimit(2)
                     .textSelection(.enabled)
                 
-                // Response text with markdown rendering
-                if let attributedString = try? AttributedString(markdown: notification.response, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                // Response text with markdown rendering (apply spacing fixes first)
+                let processedResponse = MLXResponseParser.fixSpacing(notification.response)
+                if let attributedString = try? AttributedString(markdown: processedResponse, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
                     Text(attributedString)
                         .font(.system(size: 13))
                         .lineSpacing(6) // 1.2 line spacing (13 * 1.2 ≈ 15.6, spacing = 2.6 ≈ 6px)
@@ -75,7 +76,7 @@ struct NotificationBubble: View {
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
                 } else {
-                    Text(notification.response)
+                    Text(processedResponse)
                         .font(.system(size: 13))
                         .lineSpacing(6)
                         .lineLimit(4)

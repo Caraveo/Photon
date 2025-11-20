@@ -55,80 +55,8 @@ struct MarkdownTextView: View {
     }
     
     private func fixSpacing(_ text: String) -> String {
-        var fixed = text
-        
-        // Add space after period if followed by uppercase letter (new sentence)
-        fixed = fixed.replacingOccurrences(
-            of: #"\.([A-Z])"#,
-            with: ". $1",
-            options: .regularExpression
-        )
-        
-        // Add space after period if followed by lowercase letter (but not in URLs or decimals)
-        fixed = fixed.replacingOccurrences(
-            of: #"([a-z])\.([a-z])"#,
-            with: "$1. $2",
-            options: .regularExpression
-        )
-        
-        // Add space after comma if followed by letter (no space)
-        fixed = fixed.replacingOccurrences(
-            of: #",([A-Za-z])"#,
-            with: ", $1",
-            options: .regularExpression
-        )
-        
-        // Add space after colon if followed by letter (no space)
-        fixed = fixed.replacingOccurrences(
-            of: #":([A-Za-z])"#,
-            with: ": $1",
-            options: .regularExpression
-        )
-        
-        // Add space after semicolon if followed by letter (no space)
-        fixed = fixed.replacingOccurrences(
-            of: #";([A-Za-z])"#,
-            with: "; $1",
-            options: .regularExpression
-        )
-        
-        // Add space after exclamation if followed by letter (no space)
-        fixed = fixed.replacingOccurrences(
-            of: #"!([A-Za-z])"#,
-            with: "! $1",
-            options: .regularExpression
-        )
-        
-        // Add space after question mark if followed by letter (no space)
-        fixed = fixed.replacingOccurrences(
-            of: #"\?([A-Za-z])"#,
-            with: "? $1",
-            options: .regularExpression
-        )
-        
-        // Fix multiple spaces (but preserve intentional line breaks)
-        fixed = fixed.replacingOccurrences(
-            of: #" {2,}"#,
-            with: " ",
-            options: .regularExpression
-        )
-        
-        // Ensure proper paragraph breaks (double newlines)
-        // Convert single newlines in the middle of sentences to spaces
-        fixed = fixed.replacingOccurrences(
-            of: #"([a-z])\n([a-z])"#,
-            with: "$1 $2",
-            options: .regularExpression
-        )
-        
-        // Ensure double newlines for paragraphs
-        fixed = fixed.replacingOccurrences(
-            of: #"\n{3,}"#,
-            with: "\n\n",
-            options: .regularExpression
-        )
-        
-        return fixed.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Use the same fixSpacing from MLXResponseParser for consistency
+        return MLXResponseParser.fixSpacing(text)
     }
 }
 
