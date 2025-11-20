@@ -26,7 +26,19 @@
 1. Download `Photon-v1.0.5-macOS.zip` from the releases page
 2. Extract the zip file
 3. Move `Photon.app` to your Applications folder
-4. Double-click to launch - **No Gatekeeper warnings!**
+4. Double-click to launch
+
+### **If You See a Security Warning**
+
+If macOS shows a "not free of malware" or "cannot be opened" warning:
+
+1. Go to **System Settings** → **Privacy & Security**
+2. Scroll down to find **Photon** in the list
+3. Click **Open Anyway** or **Allow**
+
+Alternatively, right-click `Photon.app` and select **Open** (first time only).
+
+**Note**: Photon is properly code-signed with Developer ID. This warning may appear for apps not distributed through the App Store, but the app is safe to use.
 
 ## 🎯 **The Photon Experience**
 

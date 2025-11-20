@@ -50,6 +50,19 @@ Integrated AI support (MLX, Ollama, OpenAI, Mistral) that works in the backgroun
 
 That's it. No complicated setup. No bloat. Just a browser.
 
+### **If You See a Security Warning**
+
+If macOS shows a "not free of malware" or "cannot be opened" warning:
+
+1. Go to **System Settings** (or **System Preferences** on older macOS)
+2. Navigate to **Privacy & Security** (or **Security & Privacy**)
+3. Scroll down to find **Photon** in the list
+4. Click **Open Anyway** or **Allow**
+
+Alternatively, right-click `Photon.app` and select **Open** (first time only).
+
+**Note**: This is normal for apps not distributed through the App Store. Photon is properly code-signed and safe to use.
+
 ### **From Source**
 
 ```bash
