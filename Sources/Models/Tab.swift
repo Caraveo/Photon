@@ -11,8 +11,6 @@ class BrowserTab: ObservableObject, Identifiable {
     @Published var aiNotifications: [AINotification] = []
     @Published var isProcessingAI: Bool = false
     @Published var currentReasoning: String = "" // For real-time reasoning display
-    @Published var streamingResponse: String = "" // For streaming response text
-    @Published var streamingNotificationId: UUID? // ID of the notification being streamed
     @Published var favicon: NSImage?
     var webView: BrowserWebView?
     

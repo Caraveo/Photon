@@ -299,29 +299,6 @@ class LocalAIService: ObservableObject {
         }
     }
     
-    // Streaming version for MLX
-    func sendStreamingMessage(_ message: String, systemPrompt: String? = nil, model: AIModel? = nil, onChunk: @escaping (String) async -> Void) async throws {
-        guard isConnected else {
-            let provider = settings.selectedProvider
-            let errorMsg = provider == .mlx ? "MLX service not available. Please connect in Settings or make sure MLX is running on http://localhost:11973" :
-                          provider == .ollama ? "Ollama service not available. Please connect in Settings or make sure Ollama is running on http://localhost:11434" :
-                          provider == .openai ? "OpenAI API key not set. Please set it in Settings." :
-                          "Mistral API key not set. Please set it in Settings."
-            throw AIError.notConnectedWithMessage(errorMsg)
-        }
-        
-        let selectedModel = model ?? settings.selectedModel
-        let provider = settings.selectedProvider
-        
-        if provider == .mlx {
-            try await sendMLXStreamingRequest(message: message, systemPrompt: systemPrompt, model: selectedModel, onChunk: onChunk)
-        } else {
-            // For non-MLX providers, fall back to regular request
-            let response = try await sendMessage(message, systemPrompt: systemPrompt, model: selectedModel)
-            await onChunk(response.response)
-        }
-    }
-    
     private func sendMLXRequest(message: String, systemPrompt: String? = nil, model: AIModel) async throws -> AIResponse {
         guard let baseURL = URL(string: AIProvider.mlx.baseURL) else {
             throw AIError.requestFailed
@@ -382,106 +359,6 @@ class LocalAIService: ObservableObject {
             
             let relevantURL = try await findRelevantURL(for: message, response: answer)
             return AIResponse(response: answer, relevantURL: relevantURL, query: message)
-        } catch let error as AIError {
-            throw error
-        } catch {
-            throw AIError.requestFailed
-        }
-    }
-    
-    // Streaming version for MLX
-    private func sendMLXStreamingRequest(message: String, systemPrompt: String? = nil, model: AIModel, onChunk: @escaping (String) async -> Void) async throws {
-        guard let baseURL = URL(string: AIProvider.mlx.baseURL) else {
-            throw AIError.requestFailed
-        }
-        let url = baseURL.appendingPathComponent("v1/chat/completions")
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        
-        // Build messages array with optional system prompt
-        var messages: [[String: String]] = []
-        if let systemPrompt = systemPrompt {
-            messages.append(["role": "system", "content": systemPrompt])
-        }
-        messages.append(["role": "user", "content": message])
-        
-        let requestBody: [String: Any] = [
-            "model": model.id == "mlx-default" ? "" : model.id,
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 1000,
-            "stream": true
-        ]
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
-        do {
-            // Use URLSession's async bytes API for streaming
-            let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw AIError.requestFailed
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw AIError.requestFailed
-            }
-            
-            var accumulatedContent = ""
-            
-            // Process SSE stream line by line
-            for try await line in asyncBytes.lines {
-                guard !Task.isCancelled else { return }
-                
-                // Skip empty lines (SSE format uses empty lines as separators)
-                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmedLine.isEmpty {
-                    continue
-                }
-                
-                // Process SSE data lines
-                if trimmedLine.hasPrefix("data: ") {
-                    let jsonString = String(trimmedLine.dropFirst(6))
-                    
-                    // Check for done marker
-                    if jsonString == "[DONE]" {
-                        break
-                    }
-                    
-                    // Skip if empty
-                    if jsonString.isEmpty {
-                        continue
-                    }
-                    
-                    // Parse JSON
-                    guard let jsonData = jsonString.data(using: .utf8),
-                          let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                          let choices = json["choices"] as? [[String: Any]],
-                          let firstChoice = choices.first,
-                          let delta = firstChoice["delta"] as? [String: Any] else {
-                        continue
-                    }
-                    
-                    // Content is optional (might be nil in finish_reason chunks)
-                    guard let content = delta["content"] as? String, !content.isEmpty else {
-                        // Check if this is a finish event
-                        if let finishReason = delta["finish_reason"] as? String {
-                            // Stream is complete
-                            break
-                        }
-                        continue
-                    }
-                    
-                    // Accumulate the full response
-                    accumulatedContent += content
-                    
-                    // Stream the content chunk immediately
-                    await onChunk(content)
-                }
-            }
         } catch let error as AIError {
             throw error
         } catch {
