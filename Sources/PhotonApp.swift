@@ -6,11 +6,6 @@ struct PhotonApp: App {
     @StateObject private var browserState = BrowserState()
     @StateObject private var aiService = LocalAIService()
     
-    init() {
-        // Ensure app runs as GUI application
-        NSApp.setActivationPolicy(.regular)
-    }
-    
     var body: some Scene {
         WindowGroup {
             MainBrowserView()
@@ -18,10 +13,14 @@ struct PhotonApp: App {
                 .environmentObject(aiService)
                 .frame(minWidth: 1200, minHeight: 800)
                 .onAppear {
-                    // Bring window to front when it appears
+                    // Ensure app runs as GUI application and bring window to front
                     DispatchQueue.main.async {
-                        NSApp.activate(ignoringOtherApps: true)
-                        if let window = NSApplication.shared.windows.first {
+                        let app = NSApplication.shared
+                        app.setActivationPolicy(.regular)
+                        app.activate(ignoringOtherApps: true)
+                        
+                        // Bring window to front
+                        if let window = app.windows.first {
                             window.makeKeyAndOrderFront(nil)
                             window.center()
                         }
