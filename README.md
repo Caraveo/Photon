@@ -1,180 +1,204 @@
 # Photon Browser
 
-A modern macOS browser built with SwiftUI, WebKit, and integrated local AI support (MLX, Ollama, OpenAI, Mistral).
+<div align="center">
 
-## Features
+**The Mac-Exclusive Browser That Gets Out of Your Way**
 
-- **WebKit-based Rendering**: Uses WKWebView for fast, native web content rendering
-- **SwiftUI Interface**: Modern, native macOS UI with smooth animations
-- **AI Integration**: Support for multiple AI providers:
-  - MLX (Local) - Running on `http://localhost:11973`
-  - Ollama (Local) - Running on `http://localhost:11434`
-  - OpenAI - Cloud-based AI service
-  - Mistral AI - Cloud-based AI service
-- **Tab System**: Multiple tabs with keyboard shortcuts (CMD+T/CTRL+T)
-- **Dynamic Search Field**: Intelligent search field that hides/shows based on user interaction
-- **AI Response Cards**: Beautiful card-based UI for AI responses with relevant URLs
-- **METAL Bridge**: Swift/TypeScript communication layer for seamless integration
-- **Tab Freezing**: Tabs are frozen when inactive to prevent page reloads
+![Photon Browser](Vision.heic)
 
-## Requirements
+*Focus on your web content. The best interface is #NoInterface.*
 
-- macOS 13.0 or later
-- Swift 5.9 or later
-- For local AI services:
-  - MLX service running on port 11973 (optional)
-  - Ollama service running on port 11434 (optional)
+</div>
 
-## Installation
+---
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/caraveo/Photon.git
-   cd Photon
-   ```
+## 🎯 **#NoInterface Philosophy**
 
-2. **Build the project**:
-   ```bash
-   swift build
-   ```
+**Photon is built on a radical idea: the browser should disappear.**
 
-3. **Run the application**:
-   ```bash
-   swift run Photon
-   ```
+While other browsers compete for your attention with toolbars, buttons, and distractions, Photon fades into the background. Your search field intelligently hides when you're reading. Navigation controls appear only when needed. The interface adapts to you—not the other way around.
 
-   Or use the launch script:
-   ```bash
-   ./run.sh
-   ```
+**The result?** Pure focus on what matters: your web content.
 
-## Usage
+---
 
-### Basic Navigation
+## ✨ **Why Photon?**
 
-- **Search**: Type in the search field and press Enter to search
-- **AI Search**: Click the "AI" button or use the AI search feature
-- **New Tab**: Press `CMD+T` or `CTRL+T`
-- **Navigation**: Use the `<`, `>`, and refresh icons in the search field
+### **Mac-Native Excellence**
+Built exclusively for macOS with SwiftUI and WebKit, Photon feels like it was always meant to be on your Mac. Native performance, native design language, native everything.
 
-### AI Features
+### **Intelligent Minimalism**
+- **Dynamic Search Field**: Appears when you need it, disappears when you don't
+- **Smart Positioning**: Choose top or bottom alignment—your way
+- **Context-Aware UI**: The interface adapts to your workflow
 
-1. **Connect AI Service**:
-   - Go to `File → Settings` (or press `CMD+,`)
-   - Select your AI provider
-   - For cloud services (OpenAI, Mistral), enter your API key
-   - Click "Connect" to verify connection
+### **AI That Doesn't Intrude**
+Integrated AI support (MLX, Ollama, OpenAI, Mistral) that works in the background. Get answers without leaving your flow. Beautiful response cards appear above your content—never blocking, always helpful.
 
-2. **Use AI Search**:
-   - Type your query in the search field
-   - Click the "AI" button to get AI-powered responses
-   - View responses as cards with relevant URLs
+### **Performance First**
+- **Tab Freezing**: Inactive tabs stay frozen, preventing unnecessary reloads
+- **WebKit Engine**: Lightning-fast rendering powered by Apple's WebKit
+- **Native Swift**: Built from the ground up for macOS performance
 
-3. **Settings**:
-   - Hide AI service selector in search field for a cleaner interface
-   - Choose default AI provider and model
-   - Manage API keys securely
+---
 
-## Project Structure
+## 🚀 **Get Started**
+
+### **Quick Install**
+
+1. **Download the latest release** from the [Releases](https://github.com/Caraveo/Photon/releases) page
+2. **Extract** `Photon.app`
+3. **Move to Applications** and launch
+
+That's it. No complicated setup. No bloat. Just a browser.
+
+### **From Source**
+
+```bash
+git clone https://github.com/caraveo/Photon.git
+cd Photon
+swift build -c release
+```
+
+---
+
+## 🎨 **Screenshots**
+
+<div align="center">
+
+![Photon Vision](Vision.heic)
+
+*Clean, focused, beautiful.*
+
+![Photon Microsoft](Microsoft.heic)
+
+*Your content, front and center.*
+
+</div>
+
+---
+
+## 🧠 **AI Integration (Optional)**
+
+Photon includes powerful AI capabilities that stay out of your way:
+
+- **Local AI**: Run MLX or Ollama on your machine—privacy-first
+- **Cloud AI**: OpenAI and Mistral support for when you need more power
+- **Smart Responses**: AI answers appear as elegant cards with relevant URLs
+- **Zero Friction**: AI works in the background, never interrupting your flow
+
+**Setup**: `File → Settings` (or `CMD+,`) → Choose your AI provider → Connect
+
+---
+
+## ⌨️ **Keyboard Shortcuts**
+
+- `CMD+T` / `CTRL+T` - New tab
+- `CMD+,` - Settings
+- `Enter` - Search/Navigate
+- `ESC` - Dismiss AI cards
+
+**That's it.** No overwhelming shortcuts. Just the essentials.
+
+---
+
+## 🛠️ **For Developers**
+
+### **Tech Stack**
+- **SwiftUI** - Modern, declarative UI framework
+- **WebKit** - Apple's powerful web rendering engine
+- **Swift Package Manager** - Clean dependency management
+
+### **Code Signing**
+
+Sign your build with your Apple Developer account:
+
+```bash
+./sign.sh
+```
+
+The script auto-detects your signing identity. For distribution, you'll need a "Developer ID Application" certificate.
+
+### **Project Structure**
 
 ```
 Photon/
 ├── Sources/
-│   ├── PhotonApp.swift              # Main app entry point
-│   ├── Models/
-│   │   ├── BrowserState.swift       # Browser state management
-│   │   ├── Tab.swift                # Tab management
-│   │   ├── AIProvider.swift         # AI provider definitions
-│   │   └── AIResponse.swift         # AI response data structures
-│   ├── Views/
-│   │   ├── MainBrowserView.swift    # Main layout
-│   │   ├── BrowserView.swift        # Browser component
-│   │   ├── TabBarView.swift         # Tab bar UI
-│   │   ├── TabBrowserView.swift     # Tab content view
-│   │   ├── AIComponents.swift       # AI-related UI components
-│   │   └── SettingsView.swift       # Settings panel
-│   ├── Services/
-│   │   ├── LocalAIService.swift     # AI service integration
-│   │   └── PromptGenerator.swift    # AI prompt generation
-│   └── Bridge/
-│       ├── MetalBridge.swift        # Swift bridge implementation
-│       └── typescript-bridge.ts     # TypeScript bridge
-├── Package.swift                    # Swift Package Manager config
-└── README.md
+│   ├── PhotonApp.swift          # App entry point
+│   ├── Models/                  # Data models
+│   ├── Views/                   # SwiftUI views
+│   ├── Services/                # AI & network services
+│   └── Bridge/                  # METAL bridge for IPC
+└── Package.swift
 ```
 
-## Architecture
+---
 
-### Components
+## 🎯 **The Photon Difference**
 
-1. **MainBrowserView**: Main browser interface orchestrating all components
-2. **TabManager**: Manages multiple browser tabs with independent states
-3. **LocalAIService**: Handles communication with AI providers
-4. **MetalBridge**: Swift/TypeScript bridge for cross-layer communication
+| Traditional Browsers | Photon |
+|---------------------|--------|
+| Cluttered toolbars | Clean, minimal |
+| Always-visible UI | Context-aware |
+| Distracting interface | #NoInterface |
+| Generic design | Mac-native |
+| One-size-fits-all | Adapts to you |
 
-### Data Flow
+---
 
-```
-View (SwiftUI) → BrowserState/TabManager → WebView (WKWebView)
-                ↓
-            UnifiedSearchField → LocalAIService → AI Providers
-                ↓
-            AI Response Cards → Display Results
-```
+## 📋 **Requirements**
 
-## Development
+- **macOS 13.0+** (Ventura or later)
+- **Apple Silicon or Intel Mac**
+- **Optional**: Local AI services (MLX/Ollama) for privacy-first AI
 
-### Building for Production
+---
 
-```bash
-swift build -c release
-```
+## 🌟 **Features**
 
-### Code Signing
+- ✅ **Native macOS Experience** - Built exclusively for Mac
+- ✅ **Intelligent UI** - Interface that adapts to you
+- ✅ **Tab Management** - Multiple tabs with keyboard shortcuts
+- ✅ **AI Integration** - Optional, powerful, unobtrusive
+- ✅ **Performance Optimized** - Tab freezing, efficient rendering
+- ✅ **Privacy-First** - Local AI options, no tracking
+- ✅ **Open Source** - MIT License, fully transparent
 
-To sign the app with your Apple Developer account:
+---
 
-1. **Get your Team ID** from [Apple Developer Account](https://developer.apple.com/account)
+## 🤝 **Contributing**
 
-2. **Sign the app**:
-   ```bash
-   ./sign.sh YOUR_TEAM_ID
-   ```
-   
-   Or set the `TEAM_ID` environment variable:
-   ```bash
-   export TEAM_ID="YOUR_TEAM_ID"
-   ./sign.sh
-   ```
+We welcome contributions! Whether it's bug fixes, features, or documentation improvements, your help makes Photon better.
 
-3. **Verify signing**:
-   ```bash
-   codesign -dv --verbose=4 Photon.app
-   spctl --assess --verbose Photon.app
-   ```
+1. Fork the repository
+2. Create your feature branch
+3. Make your changes
+4. Submit a Pull Request
 
-**Note**: Code signing requires:
-- Valid Apple Developer account
-- "Developer ID Application" certificate installed in Keychain
-- Team ID from your developer account
+---
 
-### Running Tests
+## 📄 **License**
 
-```bash
-swift test
-```
+MIT License - Use it, modify it, make it yours.
 
-## Keyboard Shortcuts
+---
 
-- `CMD+T` / `CTRL+T`: New tab
-- `CMD+,`: Open Settings
-- `Enter`: Search/Navigate
-- `ESC`: Close AI cards (when visible)
+## 🎉 **Ready to Focus?**
 
-## License
+**Download Photon today and experience browsing without the browser.**
 
-MIT License
+<div align="center">
 
-## Contributing
+**[Download Latest Release](https://github.com/Caraveo/Photon/releases)** | **[View on GitHub](https://github.com/Caraveo/Photon)**
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+*The browser that gets out of your way.*
+
+</div>
+
+---
+
+<div align="center">
+
+**Made with ❤️ for Mac users who value focus over features.**
+
+</div>
