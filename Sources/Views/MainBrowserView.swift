@@ -64,7 +64,7 @@ struct MainBrowserView: View {
                     }
                 }
                 
-                // Overlay content on top of browser
+                // Overlay content on top of browser - only blocks the top portion
                 VStack(spacing: 0) {
                     // Tab Bar - Only show when there are 2+ tabs
                     if tabManager.tabs.count > 1 {
@@ -76,10 +76,12 @@ struct MainBrowserView: View {
                        (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
                         VStack(spacing: 0) {
                             HStack(spacing: 16) {
-                                // Close button
+                                // Close button - make sure it's clickable
                                 Button(action: {
+                                    print("🔴 [DEBUG] Close button clicked")
                                     withAnimation {
                                         activeTab.aiResponseCards.removeAll()
+                                        activeTab.isProcessingAI = false
                                     }
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
@@ -88,6 +90,14 @@ struct MainBrowserView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.leading, 20)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    print("🔴 [DEBUG] Close button tapped")
+                                    withAnimation {
+                                        activeTab.aiResponseCards.removeAll()
+                                        activeTab.isProcessingAI = false
+                                    }
+                                }
                                 
                                 // Horizontal scrollable cards
                                 ScrollView(.horizontal, showsIndicators: false) {
@@ -125,10 +135,15 @@ struct MainBrowserView: View {
                             )
                         }
                         .transition(.move(edge: .top).combined(with: .opacity))
+                        .allowsHitTesting(true) // Ensure cards area is clickable
                     }
                     
-                    Spacer() // Push everything else to top
+                    // Spacer that allows clicks to pass through to browser
+                    Spacer()
+                        .frame(height: browserHeight)
+                        .allowsHitTesting(false) // Allow clicks to pass through to browser
                 }
+                .allowsHitTesting(true) // But the top portion (cards) should be clickable
                 
                 // Unified Search/Input Field - Overlay on browser (only in browser area, not over tab bar)
                 VStack(spacing: 0) {
