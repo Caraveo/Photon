@@ -156,6 +156,8 @@ class LocalAIService: ObservableObject {
                         var allModels = AIModel.defaultModels.filter { $0.provider != .mlx }
                         allModels.append(contentsOf: models)
                         self.availableModels = allModels
+                        // Also update settings availableModels so saved models can be loaded
+                        self.settings.availableModels = allModels
                     }
                 }
             } catch {
@@ -186,6 +188,8 @@ class LocalAIService: ObservableObject {
                         var allModels = AIModel.defaultModels.filter { $0.provider != .ollama }
                         allModels.append(contentsOf: models)
                         self.availableModels = allModels
+                        // Also update settings availableModels so saved models can be loaded
+                        self.settings.availableModels = allModels
                     }
                 }
             } catch {
@@ -196,6 +200,8 @@ class LocalAIService: ObservableObject {
             // Use default models for OpenAI and Mistral
             await MainActor.run {
                 self.availableModels = AIModel.defaultModels
+                // Also update settings availableModels
+                self.settings.availableModels = AIModel.defaultModels
             }
         }
     }

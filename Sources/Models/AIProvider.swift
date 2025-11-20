@@ -82,10 +82,13 @@ class AISettings: ObservableObject {
             selectedProvider = provider
         }
         
-        // Load selected model
-        if let modelId = UserDefaults.standard.string(forKey: selectedModelKey),
-           let model = availableModels.first(where: { $0.id == modelId }) {
-            selectedModel = model
+        // Load selected model - try availableModels first, then defaultModels
+        if let modelId = UserDefaults.standard.string(forKey: selectedModelKey) {
+            if let model = availableModels.first(where: { $0.id == modelId }) {
+                selectedModel = model
+            } else if let model = AIModel.defaultModels.first(where: { $0.id == modelId }) {
+                selectedModel = model
+            }
         }
         
         // Load hide AI service setting
@@ -101,16 +104,19 @@ class AISettings: ObservableObject {
     func saveOpenAIKey(_ key: String) {
         openAIKey = key
         UserDefaults.standard.set(key, forKey: openAIKeyKey)
+        UserDefaults.standard.synchronize()
     }
     
     func saveMistralKey(_ key: String) {
         mistralKey = key
         UserDefaults.standard.set(key, forKey: mistralKeyKey)
+        UserDefaults.standard.synchronize()
     }
     
     func setProvider(_ provider: AIProvider) {
         selectedProvider = provider
         UserDefaults.standard.set(provider.rawValue, forKey: selectedProviderKey)
+        UserDefaults.standard.synchronize()
         
         // Update selected model to first available for this provider
         if let firstModel = availableModels.first(where: { $0.provider == provider }) {
@@ -121,16 +127,19 @@ class AISettings: ObservableObject {
     func setModel(_ model: AIModel) {
         selectedModel = model
         UserDefaults.standard.set(model.id, forKey: selectedModelKey)
+        UserDefaults.standard.synchronize()
     }
     
     func setHideAIServiceInSearch(_ hide: Bool) {
         hideAIServiceInSearch = hide
         UserDefaults.standard.set(hide, forKey: hideAIServiceKey)
+        UserDefaults.standard.synchronize()
     }
     
     func setSearchFieldPosition(_ position: SearchFieldPosition) {
         searchFieldPosition = position
         UserDefaults.standard.set(position.rawValue, forKey: searchFieldPositionKey)
+        UserDefaults.standard.synchronize()
     }
 }
 
