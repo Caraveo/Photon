@@ -9,8 +9,6 @@ struct MainBrowserView: View {
     @StateObject private var settings = AISettings()
     @State private var searchText: String = ""
     @State private var isSearchActive: Bool = false
-    @State private var showURLBar: Bool = false
-    @State private var isHoveringURLBar: Bool = false
     @State private var aiResponseCards: [AIResponseCard] = []
     @State private var isProcessingAI: Bool = false
     
@@ -52,20 +50,6 @@ struct MainBrowserView: View {
                 Spacer()
             }
             
-            // URL Bar at top - fades in/out on hover
-            VStack {
-                HoverableURLBar(showURLBar: $showURLBar, isHovering: $isHoveringURLBar)
-                    .opacity(showURLBar ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: showURLBar)
-                    .onHover { hovering in
-                        isHoveringURLBar = hovering
-                        withAnimation {
-                            showURLBar = hovering || browserState.currentURL != nil
-                        }
-                    }
-                Spacer()
-            }
-            
             // Unified Search/Input Field
             VStack {
                 if !isSearchActive {
@@ -104,22 +88,6 @@ struct MainBrowserView: View {
             // Auto-connect
             if !aiService.isConnected {
                 aiService.connect()
-            }
-        }
-        .onChange(of: browserState.currentURL) { url in
-            // Show URL bar when navigating
-            if url != nil {
-                withAnimation {
-                    showURLBar = true
-                }
-                // Hide after 3 seconds if not hovering
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    if !isHoveringURLBar {
-                        withAnimation {
-                            showURLBar = false
-                        }
-                    }
-                }
             }
         }
     }
@@ -439,49 +407,3 @@ struct APIKeyDialog: View {
     }
 }
 
-struct HoverableURLBar: View {
-    @Binding var showURLBar: Bool
-    @Binding var isHovering: Bool
-    @EnvironmentObject var browserState: BrowserState
-    @State private var urlString: String = ""
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            Button(action: { browserState.goBack() }) {
-                Image(systemName: "chevron.left")
-            }
-            .buttonStyle(.borderless)
-            .disabled(!browserState.canGoBack)
-            
-            Button(action: { browserState.goForward() }) {
-                Image(systemName: "chevron.right")
-            }
-            .buttonStyle(.borderless)
-            .disabled(!browserState.canGoForward)
-            
-            Button(action: { browserState.reload() }) {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            
-            TextField("URL", text: $urlString)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit {
-                    browserState.navigate(to: urlString)
-                }
-                .onChange(of: browserState.currentURL) { newURL in
-                    if let url = newURL {
-                        urlString = url.absoluteString
-                    }
-                }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.windowBackgroundColor).opacity(0.95))
-                .shadow(color: .black.opacity(0.2), radius: 8)
-        )
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-    }
-}
