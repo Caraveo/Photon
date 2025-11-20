@@ -89,6 +89,43 @@ class LocalAIService: ObservableObject {
                     self.connectionStatus = "Mistral key not set"
                 }
             }
+            
+        case .ollama:
+            // Check Ollama service
+            do {
+                let tagsURL = baseURL.appendingPathComponent("api/tags")
+                let (_, response) = try await session.data(from: tagsURL)
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200 {
+                    await MainActor.run {
+                        self.isConnected = true
+                        self.connectionStatus = "Connected to Ollama"
+                    }
+                    return
+                }
+            } catch {
+                // Try health endpoint as fallback
+            }
+            
+            do {
+                let healthURL = baseURL.appendingPathComponent("api/version")
+                let (_, response) = try await session.data(from: healthURL)
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200 {
+                    await MainActor.run {
+                        self.isConnected = true
+                        self.connectionStatus = "Connected to Ollama"
+                    }
+                    return
+                }
+            } catch {}
+            
+            await MainActor.run {
+                self.isConnected = false
+                self.connectionStatus = "Ollama service not available"
+            }
         }
     }
     
@@ -125,6 +162,36 @@ class LocalAIService: ObservableObject {
                 print("⚠️ [DEBUG] Failed to fetch MLX models: \(error.localizedDescription)")
             }
             
+        case .ollama:
+            // Fetch models from Ollama
+            do {
+                let tagsURL = baseURL.appendingPathComponent("api/tags")
+                let (data, response) = try await session.data(from: tagsURL)
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let modelsData = json["models"] as? [[String: Any]] {
+                    
+                    let models = modelsData.compactMap { modelData -> AIModel? in
+                        guard let name = modelData["name"] as? String else { return nil }
+                        // Ollama model names can include tags like "llama2:latest" or just "llama2"
+                        let modelId = name
+                        let displayName = name.replacingOccurrences(of: ":latest", with: "").capitalized
+                        return AIModel(id: modelId, name: displayName, provider: .ollama)
+                    }
+                    
+                    await MainActor.run {
+                        // Merge with defaults
+                        var allModels = AIModel.defaultModels.filter { $0.provider != .ollama }
+                        allModels.append(contentsOf: models)
+                        self.availableModels = allModels
+                    }
+                }
+            } catch {
+                print("⚠️ [DEBUG] Failed to fetch Ollama models: \(error.localizedDescription)")
+            }
+            
         case .openai, .mistral:
             // Use default models for OpenAI and Mistral
             await MainActor.run {
@@ -144,6 +211,8 @@ class LocalAIService: ObservableObject {
         switch provider {
         case .mlx:
             return try await sendMLXRequest(message: message, model: selectedModel)
+        case .ollama:
+            return try await sendOllamaRequest(message: message, model: selectedModel)
         case .openai:
             return try await sendOpenAIRequest(message: message, model: selectedModel)
         case .mistral:
@@ -220,6 +289,40 @@ class LocalAIService: ObservableObject {
               let choices = json["choices"] as? [[String: Any]],
               let firstChoice = choices.first,
               let messageObj = firstChoice["message"] as? [String: Any],
+              let content = messageObj["content"] as? String else {
+            throw AIError.invalidResponse
+        }
+        
+        let relevantURL = try await findRelevantURL(for: message, response: content)
+        return AIResponse(response: content, relevantURL: relevantURL, query: message)
+    }
+    
+    private func sendOllamaRequest(message: String, model: AIModel) async throws -> AIResponse {
+        let baseURL = URL(string: AIProvider.ollama.baseURL)!
+        let url = baseURL.appendingPathComponent("api/chat")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let requestBody: [String: Any] = [
+            "model": model.id,
+            "messages": [
+                ["role": "user", "content": message]
+            ],
+            "stream": false
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw AIError.requestFailed
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let messageObj = json["message"] as? [String: Any],
               let content = messageObj["content"] as? String else {
             throw AIError.invalidResponse
         }

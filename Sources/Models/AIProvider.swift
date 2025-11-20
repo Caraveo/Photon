@@ -2,6 +2,7 @@ import Foundation
 
 enum AIProvider: String, CaseIterable, Identifiable {
     case mlx = "MLX (Local)"
+    case ollama = "Ollama (Local)"
     case openai = "OpenAI"
     case mistral = "Mistral AI"
     
@@ -11,6 +12,8 @@ enum AIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .mlx:
             return "http://localhost:11973"
+        case .ollama:
+            return "http://localhost:11434"
         case .openai:
             return "https://api.openai.com"
         case .mistral:

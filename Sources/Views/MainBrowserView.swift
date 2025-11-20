@@ -446,6 +446,7 @@ struct ModelSelectorDropdown: View {
             }
             .onChange(of: selectedProvider) { newProvider in
                 onProviderChange(newProvider)
+                // Only prompt for API key for cloud providers (not local ones like MLX or Ollama)
                 let needsKey = (newProvider == .openai && settings.openAIKey.isEmpty) ||
                               (newProvider == .mistral && settings.mistralKey.isEmpty)
                 if needsKey {
