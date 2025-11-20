@@ -352,61 +352,38 @@ struct MainBrowserView: View {
     }
     
     private func generatePromptsAfterConnection(query: String, activeTab: BrowserTab) async {
-        // Generate 3 different prompts
-        let prompts = PromptGenerator.generatePrompts(from: query)
+        // Generate single prompt
         let selectedModel = settings.selectedModel
-        var completedCount = 0
-        let totalPrompts = prompts.count
+        let prompt = query // Use query directly as prompt
         
-        // Run all 3 prompts in parallel
-        await withTaskGroup(of: (PromptMode, Result<AIResponse, Error>).self) { group in
-            for (mode, prompt) in prompts {
-                    group.addTask {
-                        do {
-                            let response = try await aiService.sendMessage(prompt, model: selectedModel)
-                            return (mode, .success(response))
-                        } catch {
-                            return (mode, .failure(error))
-                    }
-                }
+        do {
+            let response = try await aiService.sendMessage(prompt, model: selectedModel)
+            await MainActor.run {
+                let notification = AINotification(
+                    response: response.response,
+                    relevantURL: response.relevantURL,
+                    query: query,
+                    promptMode: nil
+                )
+                activeTab.aiNotifications.insert(notification, at: 0)
+                activeTab.isProcessingAI = false
             }
-            
-            // Collect results as they complete
-            for await (mode, result) in group {
-                await MainActor.run {
-                    completedCount += 1
-                    
-                    switch result {
-                    case .success(let response):
-                        let notification = AINotification(
-                            response: response.response,
-                            relevantURL: response.relevantURL,
-                            query: query,
-                            promptMode: mode
-                        )
-                        activeTab.aiNotifications.insert(notification, at: 0) // Insert at top
-                            
-                    case .failure(let error):
-                        let errorMessage: String
-                        if let aiError = error as? AIError {
-                            errorMessage = aiError.localizedDescription
-                        } else {
-                            errorMessage = "Error: \(error.localizedDescription)"
-                        }
-                        let errorNotification = AINotification(
-                            response: errorMessage,
-                            relevantURL: nil,
-                            query: query,
-                            promptMode: mode
-                        )
-                        activeTab.aiNotifications.insert(errorNotification, at: 0)
-                    }
-                    
-                        // Check if all requests are done
-                        if completedCount >= totalPrompts {
-                            activeTab.isProcessingAI = false
-                        }
+        } catch {
+            await MainActor.run {
+                let errorMessage: String
+                if let aiError = error as? AIError {
+                    errorMessage = aiError.localizedDescription
+                } else {
+                    errorMessage = "Error: \(error.localizedDescription)"
                 }
+                let errorNotification = AINotification(
+                    response: errorMessage,
+                    relevantURL: nil,
+                    query: query,
+                    promptMode: nil
+                )
+                activeTab.aiNotifications.insert(errorNotification, at: 0)
+                activeTab.isProcessingAI = false
             }
         }
     }

@@ -42,6 +42,15 @@ struct NotificationBubble: View {
             )
             .transition(.move(edge: .trailing).combined(with: .opacity).combined(with: .scale(scale: 0.95)))
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isExpanded)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Make entire bubble clickable to expand (when collapsed)
+                if !isExpanded {
+                    withAnimation {
+                        isExpanded = true
+                    }
+                }
+            }
         }
     }
     
@@ -103,12 +112,6 @@ struct NotificationBubble: View {
         }
         .padding(16)
         .frame(width: 360)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation {
-                isExpanded = true
-            }
-        }
     }
     
     // Expanded full mode view
