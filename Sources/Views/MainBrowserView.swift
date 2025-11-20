@@ -377,6 +377,7 @@ struct MainBrowserView: View {
                 
                 try await aiService.sendStreamingMessage(userPrompt, systemPrompt: systemPrompt, model: selectedModel) { chunk in
                     await MainActor.run {
+                        // Append chunk to streaming response
                         activeTab.streamingResponse += chunk
                         
                         // Parse accumulated response for reasoning
@@ -387,22 +388,21 @@ struct MainBrowserView: View {
                             activeTab.currentReasoning = parsed.reasoning
                         }
                         
-                        // Update notification with current response
+                        // Update notification with current response in real-time
                         if let notificationId = activeTab.streamingNotificationId,
                            let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notificationId }) {
+                            // Use answer section if available, otherwise use full response
                             let answer = parsed.answer.isEmpty ? activeTab.streamingResponse : parsed.answer
                             let fixedAnswer = MLXResponseParser.fixSpacing(answer)
                             
-                            // Update existing notification
-                            var updatedNotification = activeTab.aiNotifications[index]
-                            // Create new notification with updated response
-                            let newNotification = AINotification(
+                            // Update the notification with new response
+                            let updatedNotification = AINotification(
                                 response: fixedAnswer,
-                                relevantURL: updatedNotification.relevantURL?.absoluteString,
+                                relevantURL: activeTab.aiNotifications[index].relevantURL?.absoluteString,
                                 query: query,
                                 promptMode: nil
                             )
-                            activeTab.aiNotifications[index] = newNotification
+                            activeTab.aiNotifications[index] = updatedNotification
                         }
                     }
                 }

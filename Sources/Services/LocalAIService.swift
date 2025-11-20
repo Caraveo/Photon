@@ -431,47 +431,55 @@ class LocalAIService: ObservableObject {
             }
             
             var accumulatedContent = ""
-            var inReasoningSection = false
             
+            // Process SSE stream line by line
             for try await line in asyncBytes.lines {
                 guard !Task.isCancelled else { return }
                 
-                if line.hasPrefix("data: ") {
-                    let jsonString = String(line.dropFirst(6))
+                // Skip empty lines (SSE format uses empty lines as separators)
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmedLine.isEmpty {
+                    continue
+                }
+                
+                // Process SSE data lines
+                if trimmedLine.hasPrefix("data: ") {
+                    let jsonString = String(trimmedLine.dropFirst(6))
                     
+                    // Check for done marker
                     if jsonString == "[DONE]" {
                         break
                     }
                     
+                    // Skip if empty
+                    if jsonString.isEmpty {
+                        continue
+                    }
+                    
+                    // Parse JSON
                     guard let jsonData = jsonString.data(using: .utf8),
                           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                           let choices = json["choices"] as? [[String: Any]],
                           let firstChoice = choices.first,
-                          let delta = firstChoice["delta"] as? [String: Any],
-                          let content = delta["content"] as? String else {
+                          let delta = firstChoice["delta"] as? [String: Any] else {
                         continue
                     }
                     
+                    // Content is optional (might be nil in finish_reason chunks)
+                    guard let content = delta["content"] as? String, !content.isEmpty else {
+                        // Check if this is a finish event
+                        if let finishReason = delta["finish_reason"] as? String {
+                            // Stream is complete
+                            break
+                        }
+                        continue
+                    }
+                    
+                    // Accumulate the full response
                     accumulatedContent += content
                     
-                    // Check for reasoning markers
-                    if accumulatedContent.contains("[Reasoning]") && !inReasoningSection {
-                        inReasoningSection = true
-                    }
-                    
-                    if accumulatedContent.contains("[Answer]") {
-                        // Switch to answer section
-                        inReasoningSection = false
-                        if let range = accumulatedContent.range(of: "[Answer]") {
-                            let answerStart = accumulatedContent.index(range.upperBound, offsetBy: 0)
-                            let answerContent = String(accumulatedContent[answerStart...])
-                            await onChunk(String(answerContent.suffix(content.count)))
-                        }
-                    } else if !inReasoningSection {
-                        // In answer section or no markers - stream the content
-                        await onChunk(content)
-                    }
-                    // If in reasoning section, don't stream yet
+                    // Stream the content chunk immediately
+                    await onChunk(content)
                 }
             }
         } catch let error as AIError {
