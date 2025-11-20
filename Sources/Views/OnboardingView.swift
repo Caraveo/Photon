@@ -339,14 +339,23 @@ struct SearchEngineCard: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 20) {
-                Image(systemName: engine.icon)
-                    .font(.system(size: 48))
-                    .foregroundColor(isSelected ? .white : .blue)
-                    .frame(width: 100, height: 100)
-                    .background(
-                        Circle()
-                            .fill(isSelected ? Color.blue : Color(NSColor.controlBackgroundColor))
-                    )
+                Group {
+                    if let logoName = engine.logoImageName,
+                       let nsImage = NSImage(named: logoName) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } else {
+                        Image(systemName: engine.icon)
+                            .font(.system(size: 48))
+                            .foregroundColor(isSelected ? .white : .blue)
+                    }
+                }
+                .frame(width: 100, height: 100)
+                .background(
+                    Circle()
+                        .fill(isSelected ? Color.blue : Color(NSColor.controlBackgroundColor))
+                )
                 
                 Text(engine.rawValue)
                     .font(.system(size: 20, weight: .semibold))

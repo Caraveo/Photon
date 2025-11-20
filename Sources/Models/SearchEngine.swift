@@ -18,6 +18,17 @@ enum SearchEngine: String, CaseIterable, Identifiable {
         }
     }
     
+    var logoImageName: String? {
+        switch self {
+        case .duckduckgo:
+            return "DuckDuckGo"
+        case .google:
+            return "Google"
+        case .photon:
+            return nil // Use SF Symbol for Photon
+        }
+    }
+    
     var description: String {
         switch self {
         case .duckduckgo:
