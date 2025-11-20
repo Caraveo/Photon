@@ -119,7 +119,9 @@ Sign your build with your Apple Developer account:
 ./sign.sh
 ```
 
-The script auto-detects your signing identity. For distribution, you'll need a "Developer ID Application" certificate.
+The script auto-detects your signing identity. 
+
+**Note**: For public distribution, you need a "Developer ID Application" certificate (not just "Apple Development"). See [DISTRIBUTION.md](DISTRIBUTION.md) for details on obtaining and using Developer ID certificates.
 
 ### **Project Structure**
 
