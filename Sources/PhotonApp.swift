@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ObjectiveC
 
 // Window delegate to handle Settings window lifecycle
 class SettingsWindowDelegate: NSObject, NSWindowDelegate {
@@ -10,9 +11,10 @@ class SettingsWindowDelegate: NSObject, NSWindowDelegate {
     }
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        // Allow window to close normally, but use orderOut to avoid animation issues
-        // Return true to allow close, but we'll handle it with orderOut in the button action
-        return true
+        // Prevent default close animation by using orderOut
+        // This avoids the _NSWindowTransformAnimation crash
+        sender.orderOut(nil)
+        return false // Prevent default close behavior
     }
 }
 
@@ -115,8 +117,15 @@ struct PhotonApp: App {
                 window.identifier = NSUserInterfaceItemIdentifier("settings")
                 window.center()
                 
+                // Disable window animations to prevent crash
+                window.animationBehavior = .none
+                
                 // Set delegate to handle window closing
-                window.delegate = SettingsWindowDelegate()
+                let delegate = SettingsWindowDelegate()
+                window.delegate = delegate
+                
+                // Retain the delegate to prevent it from being deallocated
+                objc_setAssociatedObject(window, "SettingsWindowDelegate", delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
                 
                 // Create hosting view
                 let hostingView = NSHostingView(

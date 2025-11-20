@@ -20,12 +20,13 @@ struct SettingsView: View {
                 Spacer()
                 
                 Button(action: {
-                    // Close window safely
+                    // Close window safely - cancel tasks first
+                    aiService.connectionTask?.cancel()
+                    
+                    // Find and close the settings window
                     if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
-                        // Cancel any running tasks before closing
-                        aiService.connectionTask?.cancel()
-                        // Use orderOut to avoid animation issues
-                        window.orderOut(nil)
+                        // Close the window - the delegate will handle orderOut
+                        window.performClose(nil)
                     } else {
                         dismiss()
                     }
