@@ -64,15 +64,15 @@ swift build -c release
 
 <div align="center">
 
-![Photon Browser](Vision.jpg)
+![Photon Browser](Vision.png)
 
 *Clean, focused, beautiful.*
 
-![Photon Browser](Microsoft.jpg)
+![Photon Browser](Microsoft.png)
 
 *Your content, front and center.*
 
-![Photon Browser](Samsung.jpg)
+![Photon Browser](Samsung.png)
 
 *The #NoInterface experience.*
 
