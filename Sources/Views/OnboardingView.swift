@@ -371,16 +371,12 @@ struct SearchEngineCard: View {
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(NSColor.windowBackgroundColor))
+                    .fill(Color.white)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(isSelected ? 
-                                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
-                                LinearGradient(colors: [Color.clear], startPoint: .leading, endPoint: .trailing),
-                                lineWidth: isSelected ? 3 : 0
-                            )
+                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: isSelected ? 3 : 0)
                     )
-                    .shadow(color: isSelected ? .blue.opacity(0.3) : .black.opacity(0.1), radius: isSelected ? 10 : 5, x: 0, y: 4)
+                    .shadow(color: isSelected ? .black.opacity(0.2) : .black.opacity(0.1), radius: isSelected ? 12 : 6, x: 0, y: 4)
             )
         }
         .buttonStyle(.plain)
@@ -417,12 +413,12 @@ struct AICategoryCard: View {
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(NSColor.windowBackgroundColor))
+                    .fill(Color.white)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(isSelected ? category.color : Color.clear, lineWidth: 2)
                     )
-                    .shadow(color: isSelected ? category.color.opacity(0.2) : .black.opacity(0.05), radius: 8, x: 0, y: 2)
+                    .shadow(color: isSelected ? .black.opacity(0.15) : .black.opacity(0.08), radius: 8, x: 0, y: 2)
             )
         }
         .buttonStyle(.plain)
@@ -450,15 +446,13 @@ struct ProviderCard: View {
             .padding(.horizontal, 20)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isSelected ? 
-                        LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
-                        LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .leading, endPoint: .trailing)
-                    )
+                    .fill(isSelected ? Color.blue : Color.white)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(isSelected ? Color.clear : Color(NSColor.separatorColor), lineWidth: 1)
             )
+            .shadow(color: isSelected ? .black.opacity(0.1) : .clear, radius: 4, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
