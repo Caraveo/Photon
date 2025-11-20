@@ -72,22 +72,24 @@ struct NotificationBubble: View {
                 let processedResponse = MLXResponseParser.fixSpacing(notification.response)
                 if let attributedString = try? AttributedString(markdown: processedResponse, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
                     Text(attributedString)
-                        .font(.system(size: 13))
-                        .lineSpacing(6) // 1.2 line spacing (13 * 1.2 ≈ 15.6, spacing = 2.6 ≈ 6px)
+                        .font(.system(size: 14, design: .default)) // Better readability
+                        .lineSpacing(6) // Generous line spacing
                         .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.leading)
                 } else {
                     Text(processedResponse)
-                        .font(.system(size: 13))
+                        .font(.system(size: 14, design: .default))
                         .lineSpacing(6)
                         .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.leading)
                 }
                 
                 // URL link if available
@@ -134,17 +136,20 @@ struct NotificationBubble: View {
         VStack(alignment: .leading, spacing: 20) {
             // Header with query as title and close buttons
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     // Query as formatted title
                     Text(notification.query)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 20, weight: .bold, design: .default))
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
+                        .lineSpacing(4)
                     
                     if let promptMode = notification.promptMode {
                         Text(promptMode.rawValue)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 12, weight: .medium, design: .default))
                             .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
                     }
                 }
                 
@@ -179,18 +184,19 @@ struct NotificationBubble: View {
             }
             
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, 6)
             
-            // Full response text with markdown rendering
+            // Full response text with markdown rendering - beautifully formatted
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 20) {
                     // Render markdown with beautiful formatting
                     MarkdownTextView(text: notification.response)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.trailing, 8) // Padding for scrollbar
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 4) // Add padding to prevent text from touching scrollbar
+                .padding(.vertical, 4) // Vertical padding for breathing room
             }
             .frame(maxHeight: 400)
             
