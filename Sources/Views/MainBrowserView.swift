@@ -13,45 +13,69 @@ struct MainBrowserView: View {
     @State private var isProcessingAI: Bool = false
     
     var body: some View {
-        ZStack {
-            // Main browser view - full screen
+        VStack(spacing: 0) {
+            // AI Response Cards - Horizontal row at top
+            if !aiResponseCards.isEmpty || isProcessingAI {
+                VStack(spacing: 0) {
+                    HStack(spacing: 16) {
+                        // Close button
+                        Button(action: {
+                            withAnimation {
+                                aiResponseCards.removeAll()
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                                .font(.title3)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 20)
+                        
+                        // Horizontal scrollable cards
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 20) {
+                                ForEach(aiResponseCards) { card in
+                                    AIResponseCardView(card: card) { url in
+                                        browserState.navigate(to: url.absoluteString)
+                                    }
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                }
+                                
+                                if isProcessingAI {
+                                    HStack(spacing: 12) {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                        Text("Generating...")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(20)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(NSColor.controlBackgroundColor))
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 20)
+                        }
+                    }
+                    .frame(height: 280)
+                    .background(
+                        Color(NSColor.windowBackgroundColor)
+                            .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
+                    )
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
+            // Main browser view - pushed down when cards are visible
             BrowserWebViewRepresentable()
                 .environmentObject(browserState)
                 .ignoresSafeArea()
             
-            // AI Response Cards overlay - Above search results
-            VStack {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 20) {
-                        ForEach(aiResponseCards) { card in
-                            AIResponseCardView(card: card) { url in
-                                browserState.navigate(to: url.absoluteString)
-                            }
-                            .padding(.horizontal, 40)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        }
-                        
-                        if isProcessingAI {
-                            HStack(spacing: 12) {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Generating responses...")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding()
-                            .padding(.horizontal, 40)
-                        }
-                    }
-                    .padding(.top, 60)
-                    .padding(.bottom, 20)
-                }
-                .frame(maxHeight: 500)
-                Spacer()
-            }
-            
-            // Unified Search/Input Field
-            VStack {
+            // Unified Search/Input Field - Overlay on browser
+            ZStack {
                 if !isSearchActive {
                     // Centered search field
                     UnifiedSearchField(
