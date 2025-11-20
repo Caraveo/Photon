@@ -58,27 +58,26 @@ struct NotificationBubble: View {
     private var collapsedView: some View {
         HStack(alignment: .top, spacing: 12) {
             // Content
-            VStack(alignment: .leading, spacing: 8) {
-                // Title/Query
-                if let promptMode = notification.promptMode {
-                    HStack {
-                        Text(promptMode.rawValue)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
+            VStack(alignment: .leading, spacing: 12) {
+                // Query as Title
+                Text(notification.query)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .textSelection(.enabled)
                 
                 // Response text with markdown rendering
                 if let attributedString = try? AttributedString(markdown: notification.response, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
                     Text(attributedString)
                         .font(.system(size: 13))
+                        .lineSpacing(6) // 1.2 line spacing (13 * 1.2 ≈ 15.6, spacing = 2.6 ≈ 6px)
                         .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
                 } else {
                     Text(notification.response)
                         .font(.system(size: 13))
+                        .lineSpacing(6)
                         .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
@@ -124,15 +123,25 @@ struct NotificationBubble: View {
     
     // Expanded full mode view
     private var expandedView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header with title and close button
-            HStack {
-                if let promptMode = notification.promptMode {
-                    Text(promptMode.rawValue)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 20) {
+            // Header with query as title and close buttons
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Query as formatted title
+                    Text(notification.query)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                        .textSelection(.enabled)
+                    
+                    if let promptMode = notification.promptMode {
+                        Text(promptMode.rawValue)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                
                 Spacer()
+                
                 Button(action: {
                     withAnimation {
                         isExpanded = false
@@ -162,10 +171,11 @@ struct NotificationBubble: View {
             }
             
             Divider()
+                .padding(.vertical, 4)
             
             // Full response text with markdown rendering
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     // Render markdown with beautiful formatting
                     MarkdownTextView(text: notification.response)
                 }
