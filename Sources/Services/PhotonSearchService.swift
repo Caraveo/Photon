@@ -103,9 +103,9 @@ class PhotonSearchService {
             "Title: \(result.title)\nSnippet: \(result.snippet)\nURL: \(result.url)"
         }.joined(separator: "\n\n")
         
-        // Create Realtime prompt
+        // Create Realtime prompt with markdown formatting request
         let ragPrompt = """
-        Based on the following retrieved information, provide a comprehensive answer to the user's query.
+        Based on the following retrieved information, provide a comprehensive answer to the user's query using Markdown formatting.
         
         User Query: \(query)
         
@@ -114,11 +114,13 @@ class PhotonSearchService {
         
         Instructions:
         1. Synthesize the information from the retrieved sources
-        2. Provide a clear, accurate answer
-        3. Cite relevant URLs when mentioning specific information
-        4. If the information is incomplete, mention that and suggest the user visit the source URLs
+        2. Provide a clear, accurate answer formatted in Markdown
+        3. Use **bold** for emphasis, *italic* for subtle emphasis, `code` for technical terms
+        4. Use proper line breaks, lists (- or 1.), and ## headings for structure
+        5. Cite relevant URLs when mentioning specific information
+        6. If the information is incomplete, mention that and suggest the user visit the source URLs
         
-        Answer:
+        Answer (in Markdown):
         """
         
         // Use AI service to generate response

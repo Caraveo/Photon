@@ -69,12 +69,20 @@ struct NotificationBubble: View {
                     }
                 }
                 
-                // Response text
-                Text(notification.response)
-                    .font(.system(size: 13))
-                    .lineLimit(4)
-                    .foregroundColor(.primary)
-                    .textSelection(.enabled)
+                // Response text with markdown rendering
+                if let attributedString = try? AttributedString(markdown: notification.response, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                    Text(attributedString)
+                        .font(.system(size: 13))
+                        .lineLimit(4)
+                        .foregroundColor(.primary)
+                        .textSelection(.enabled)
+                } else {
+                    Text(notification.response)
+                        .font(.system(size: 13))
+                        .lineLimit(4)
+                        .foregroundColor(.primary)
+                        .textSelection(.enabled)
+                }
                 
                 // URL link if available
                 if let url = notification.relevantURL {
@@ -155,14 +163,13 @@ struct NotificationBubble: View {
             
             Divider()
             
-            // Full response text
+            // Full response text with markdown rendering
             ScrollView(.vertical, showsIndicators: true) {
-                Text(notification.response)
-                    .font(.system(size: 14))
-                    .lineSpacing(4)
-                    .foregroundColor(.primary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 12) {
+                    // Render markdown with beautiful formatting
+                    MarkdownTextView(text: notification.response)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: 400)
             

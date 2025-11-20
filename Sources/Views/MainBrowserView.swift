@@ -352,9 +352,17 @@ struct MainBrowserView: View {
     }
     
     private func generatePromptsAfterConnection(query: String, activeTab: BrowserTab) async {
-        // Generate single prompt
+        // Generate single prompt with markdown formatting request
         let selectedModel = settings.selectedModel
-        let prompt = query // Use query directly as prompt
+        let prompt = """
+        Please provide a comprehensive answer to the following question using Markdown formatting.
+        Use **bold** for emphasis, *italic* for subtle emphasis, `code` for technical terms, 
+        and proper line breaks for readability. Format lists with - or 1. and use ## for headings if needed.
+        
+        Question: \(query)
+        
+        Answer (in Markdown):
+        """
         
         do {
             let response = try await aiService.sendMessage(prompt, model: selectedModel)
