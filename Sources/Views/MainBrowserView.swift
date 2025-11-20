@@ -13,128 +13,135 @@ struct MainBrowserView: View {
     @State private var isSearchActive: Bool = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Tab Bar - Always on top
-            TabBarView(tabManager: tabManager)
-            
-            // AI Response Cards - Horizontal row below tab bar (for active tab)
-            if let activeTab = tabManager.activeTab,
-               (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 16) {
-                        // Close button
-                        Button(action: {
-                            withAnimation {
-                                activeTab.aiResponseCards.removeAll()
-                            }
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                                .font(.title3)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 20)
-                        
-                        // Horizontal scrollable cards
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 20) {
-                                ForEach(activeTab.aiResponseCards) { card in
-                                    AIResponseCardView(card: card) { url in
-                                        activeTab.navigate(to: url.absoluteString)
-                                    }
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                                }
-                                
-                                if activeTab.isProcessingAI {
-                                    HStack(spacing: 12) {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                        Text("Generating...")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(20)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color(NSColor.controlBackgroundColor))
-                                    )
-                                }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 20)
+        GeometryReader { geometry in
+            ZStack {
+                // Main browser view - full screen background
+                // Show all tabs but only display the active one (prevents reload)
+                ZStack {
+                    ForEach(tabManager.tabs) { tab in
+                        TabBrowserView(tab: tab)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .opacity(tab.id == tabManager.activeTabId ? 1 : 0)
+                            .allowsHitTesting(tab.id == tabManager.activeTabId)
+                            .zIndex(tab.id == tabManager.activeTabId ? 1 : 0)
+                    }
+                    
+                    if tabManager.tabs.isEmpty {
+                        // Placeholder if no tabs
+                        Color(NSColor.windowBackgroundColor)
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                    }
+                }
+                .onChange(of: tabManager.activeTabId) { newActiveTabId in
+                    // Pause inactive tabs and resume active tab
+                    for tab in tabManager.tabs {
+                        if tab.id == newActiveTabId {
+                            tab.resume()
+                        } else {
+                            tab.pause()
                         }
                     }
-                    .frame(height: 280)
-                    .background(
-                        Color(NSColor.windowBackgroundColor)
-                            .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
-                    )
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-            
-            // Main browser view - full screen, pushed down when cards are visible
-            // Show all tabs but only display the active one (prevents reload)
-            ZStack {
-                ForEach(tabManager.tabs) { tab in
-                    TabBrowserView(tab: tab)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .opacity(tab.id == tabManager.activeTabId ? 1 : 0)
-                        .allowsHitTesting(tab.id == tabManager.activeTabId)
-                        .zIndex(tab.id == tabManager.activeTabId ? 1 : 0)
                 }
                 
-                if tabManager.tabs.isEmpty {
-                    // Placeholder if no tabs
-                    Color(NSColor.windowBackgroundColor)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .onChange(of: tabManager.activeTabId) { newActiveTabId in
-                // Pause inactive tabs and resume active tab
-                for tab in tabManager.tabs {
-                    if tab.id == newActiveTabId {
-                        tab.resume()
-                    } else {
-                        tab.pause()
+                // Overlay content on top of browser
+                VStack(spacing: 0) {
+                    // Tab Bar - Always on top
+                    TabBarView(tabManager: tabManager)
+                    
+                    // AI Response Cards - Horizontal row below tab bar (for active tab)
+                    if let activeTab = tabManager.activeTab,
+                       (!activeTab.aiResponseCards.isEmpty || activeTab.isProcessingAI) {
+                        VStack(spacing: 0) {
+                            HStack(spacing: 16) {
+                                // Close button
+                                Button(action: {
+                                    withAnimation {
+                                        activeTab.aiResponseCards.removeAll()
+                                    }
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                        .font(.title3)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.leading, 20)
+                                
+                                // Horizontal scrollable cards
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 20) {
+                                        ForEach(activeTab.aiResponseCards) { card in
+                                            AIResponseCardView(card: card) { url in
+                                                activeTab.navigate(to: url.absoluteString)
+                                            }
+                                            .transition(.move(edge: .top).combined(with: .opacity))
+                                        }
+                                        
+                                        if activeTab.isProcessingAI {
+                                            HStack(spacing: 12) {
+                                                ProgressView()
+                                                    .scaleEffect(0.8)
+                                                Text("Generating...")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .padding(20)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(Color(NSColor.controlBackgroundColor))
+                                            )
+                                        }
+                                    }
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 20)
+                                }
+                            }
+                            .frame(height: 280)
+                            .background(
+                                Color(NSColor.windowBackgroundColor)
+                                    .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
+                            )
+                        }
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
+                    
+                    Spacer() // Push everything else to top
                 }
-            }
-            
-            // Unified Search/Input Field - Overlay on browser
-            ZStack {
-                if !isSearchActive {
-                    // Centered search field - properly centered
-                    UnifiedSearchField(
-                        text: $searchText,
-                        isActive: $isSearchActive,
-                        onSearch: handleSearch,
-                        onAISearch: handleAISearch
-                    )
-                    .frame(width: 700)
-                    .environmentObject(settings)
-                    .transition(.scale.combined(with: .opacity))
-                } else {
-                    // Bottom search field when active
-                    VStack {
-                        Spacer()
+                
+                // Unified Search/Input Field - Overlay on browser
+                ZStack {
+                    if !isSearchActive {
+                        // Centered search field - properly centered
                         UnifiedSearchField(
                             text: $searchText,
                             isActive: $isSearchActive,
                             onSearch: handleSearch,
                             onAISearch: handleAISearch
                         )
-                        .padding(.horizontal, 40)
-                        .padding(.bottom, 40)
+                        .frame(width: 700)
                         .environmentObject(settings)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(.scale.combined(with: .opacity))
+                    } else {
+                        // Bottom search field when active
+                        VStack {
+                            Spacer()
+                            UnifiedSearchField(
+                                text: $searchText,
+                                isActive: $isSearchActive,
+                                onSearch: handleSearch,
+                                onAISearch: handleAISearch
+                            )
+                            .padding(.horizontal, 40)
+                            .padding(.bottom, 40)
+                            .environmentObject(settings)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             // Initialize AI service with settings
             aiService.settings = settings
