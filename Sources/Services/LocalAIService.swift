@@ -252,23 +252,39 @@ class LocalAIService: ObservableObject {
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        let (data, response) = try await session.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AIError.requestFailed
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                // Try to get error message from response
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorMessage = errorData["error"] as? [String: Any],
+                   let message = errorMessage["message"] as? String {
+                    throw AIError.notConnectedWithMessage(message)
+                }
+                throw AIError.requestFailed
+            }
+            
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let choices = json["choices"] as? [[String: Any]],
+                  let firstChoice = choices.first,
+                  let messageObj = firstChoice["message"] as? [String: Any],
+                  let content = messageObj["content"] as? String else {
+                throw AIError.invalidResponse
+            }
+            
+            let relevantURL = try await findRelevantURL(for: message, response: content)
+            return AIResponse(response: content, relevantURL: relevantURL, query: message)
+        } catch let error as AIError {
+            throw error
+        } catch {
             throw AIError.requestFailed
         }
-        
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let choices = json["choices"] as? [[String: Any]],
-              let firstChoice = choices.first,
-              let messageObj = firstChoice["message"] as? [String: Any],
-              let content = messageObj["content"] as? String else {
-            throw AIError.invalidResponse
-        }
-        
-        let relevantURL = try await findRelevantURL(for: message, response: content)
-        return AIResponse(response: content, relevantURL: relevantURL, query: message)
     }
     
     private func sendOpenAIRequest(message: String, model: AIModel) async throws -> AIResponse {
