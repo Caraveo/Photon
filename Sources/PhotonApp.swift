@@ -60,7 +60,7 @@ struct PhotonApp: App {
             SettingsView(settings: settings, aiService: LocalAIService(settings: settings))
         }
         .windowStyle(.automatic)
-        .defaultSize(width: 600, height: 700)
+        .defaultSize(width: 700, height: 800)
     }
     
     private func openSettingsWindow() {
@@ -71,7 +71,7 @@ struct PhotonApp: App {
             } else {
                 // Create new settings window
                 let settingsWindow = NSWindow(
-                    contentRect: NSRect(x: 0, y: 0, width: 600, height: 700),
+                    contentRect: NSRect(x: 0, y: 0, width: 700, height: 800),
                     styleMask: [.titled, .closable, .miniaturizable],
                     backing: .buffered,
                     defer: false
