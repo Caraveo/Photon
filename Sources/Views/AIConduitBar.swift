@@ -14,7 +14,7 @@ struct AIConduitBar: View {
             HStack {
                 Image(systemName: "sparkles")
                     .foregroundColor(.blue)
-                Text("Mistral AI")
+                Text("MLX AI")
                     .font(.headline)
                 Spacer()
                 if aiService.isConnected {
@@ -64,7 +64,7 @@ struct AIConduitBar: View {
             // Input Area
             VStack(spacing: 8) {
                 HStack {
-                    TextField("Ask Mistral AI...", text: $userInput, axis: .vertical)
+                    TextField("Ask MLX AI...", text: $userInput, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(3...6)
                         .disabled(isProcessing || !aiService.isConnected)
@@ -83,7 +83,7 @@ struct AIConduitBar: View {
                 }
                 
                 if !aiService.isConnected {
-                    Button("Connect to Local Mistral AI") {
+                    Button("Connect to MLX") {
                         aiService.connect()
                     }
                     .buttonStyle(.borderedProminent)

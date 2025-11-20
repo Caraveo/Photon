@@ -10,16 +10,17 @@ class LocalAIService: ObservableObject {
     private var metalBridge: MetalBridge?
     
     init() {
-        // Default to localhost:6000 for Mistral AI (based on memory)
-        self.baseURL = URL(string: "http://localhost:6000")!
+        // MLX server on port 11973
+        self.baseURL = URL(string: "http://localhost:11973")!
         self.session = URLSession.shared
         self.metalBridge = MetalBridge()
     }
     
     func connect() {
-        // Check if Mistral AI service is running
+        // Check if MLX service is running
         Task {
             do {
+                // Try health endpoint first
                 let healthURL = baseURL.appendingPathComponent("health")
                 let (_, response) = try await session.data(from: healthURL)
                 
@@ -27,7 +28,24 @@ class LocalAIService: ObservableObject {
                    httpResponse.statusCode == 200 {
                     await MainActor.run {
                         self.isConnected = true
-                        self.connectionStatus = "Connected"
+                        self.connectionStatus = "Connected to MLX"
+                    }
+                    return
+                }
+            } catch {
+                // Health endpoint might not exist, try models endpoint
+            }
+            
+            // Fallback: try models endpoint to verify connection
+            do {
+                let modelsURL = baseURL.appendingPathComponent("v1/models")
+                let (_, response) = try await session.data(from: modelsURL)
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200 {
+                    await MainActor.run {
+                        self.isConnected = true
+                        self.connectionStatus = "Connected to MLX"
                     }
                 } else {
                     await MainActor.run {
@@ -67,8 +85,10 @@ class LocalAIService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // MLX typically uses OpenAI-compatible API
+        // Model name can be empty or use the default model
         let requestBody: [String: Any] = [
-            "model": "mistral",
+            "model": "",  // MLX will use default model if empty
             "messages": [
                 [
                     "role": "user",
@@ -221,7 +241,7 @@ enum AIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConnected:
-            return "Not connected to Mistral AI service"
+            return "Not connected to MLX service"
         case .requestFailed:
             return "Request to AI service failed"
         case .invalidResponse:

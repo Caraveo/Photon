@@ -73,13 +73,13 @@ class MetalBridge {
     }
     
     private func sendDirectRequest(message: String) async throws -> String {
-        let url = URL(string: "http://localhost:6000/v1/chat/completions")!
+        let url = URL(string: "http://localhost:11973/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let requestBody: [String: Any] = [
-            "model": "mistral",
+            "model": "",  // MLX will use default model
             "messages": [
                 ["role": "user", "content": message]
             ],
