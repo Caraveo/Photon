@@ -72,6 +72,10 @@ swift build -c release
 
 *Your content, front and center.*
 
+![Photon Browser](Samsung.jpg)
+
+*The #NoInterface experience.*
+
 </div>
 
 ---
