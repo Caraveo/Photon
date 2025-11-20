@@ -66,7 +66,11 @@ swift build -c release
 
 ![Photon Browser](Vision.jpg)
 
-*Clean, focused, beautiful. Your content, front and center.*
+*Clean, focused, beautiful.*
+
+![Photon Browser](Microsoft.jpg)
+
+*Your content, front and center.*
 
 </div>
 
