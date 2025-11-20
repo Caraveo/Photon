@@ -130,6 +130,34 @@ View (SwiftUI) → BrowserState/TabManager → WebView (WKWebView)
 swift build -c release
 ```
 
+### Code Signing
+
+To sign the app with your Apple Developer account:
+
+1. **Get your Team ID** from [Apple Developer Account](https://developer.apple.com/account)
+
+2. **Sign the app**:
+   ```bash
+   ./sign.sh YOUR_TEAM_ID
+   ```
+   
+   Or set the `TEAM_ID` environment variable:
+   ```bash
+   export TEAM_ID="YOUR_TEAM_ID"
+   ./sign.sh
+   ```
+
+3. **Verify signing**:
+   ```bash
+   codesign -dv --verbose=4 Photon.app
+   spctl --assess --verbose Photon.app
+   ```
+
+**Note**: Code signing requires:
+- Valid Apple Developer account
+- "Developer ID Application" certificate installed in Keychain
+- Team ID from your developer account
+
 ### Running Tests
 
 ```bash
