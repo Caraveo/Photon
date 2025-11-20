@@ -1,93 +1,126 @@
 # Photon Browser
 
-A modern macOS browser built with SwiftUI, Chromium (WebKit), and integrated local MLX AI support.
+A modern macOS browser built with SwiftUI, WebKit, and integrated local AI support (MLX, Ollama, OpenAI, Mistral).
 
 ## Features
 
-- **Chromium-based Rendering**: Uses WKWebView (WebKit) for web content rendering
-- **SwiftUI Interface**: Modern, native macOS UI
-- **AI Conduit Bar**: Middle panel for interacting with local MLX AI
+- **WebKit-based Rendering**: Uses WKWebView for fast, native web content rendering
+- **SwiftUI Interface**: Modern, native macOS UI with smooth animations
+- **AI Integration**: Support for multiple AI providers:
+  - MLX (Local) - Running on `http://localhost:11973`
+  - Ollama (Local) - Running on `http://localhost:11434`
+  - OpenAI - Cloud-based AI service
+  - Mistral AI - Cloud-based AI service
+- **Tab System**: Multiple tabs with keyboard shortcuts (CMD+T/CTRL+T)
+- **Dynamic Search Field**: Intelligent search field that hides/shows based on user interaction
+- **AI Response Cards**: Beautiful card-based UI for AI responses with relevant URLs
 - **METAL Bridge**: Swift/TypeScript communication layer for seamless integration
-
-## Architecture
-
-### Components
-
-1. **BrowserView**: Main browser interface with navigation controls
-2. **AIConduitBar**: Middle panel for AI interactions
-3. **LocalAIService**: Service for communicating with local MLX AI instance
-4. **MetalBridge**: Swift/TypeScript bridge for cross-layer communication
-
-### Data Flow (Conduit)
-
-```
-View (SwiftUI) → BrowserState → WebView (WKWebView)
-                ↓
-            AIConduitBar → LocalAIService → MetalBridge → TypeScript Bridge → MLX AI (localhost:11973)
-```
+- **Tab Freezing**: Tabs are frozen when inactive to prevent page reloads
 
 ## Requirements
 
 - macOS 13.0 or later
 - Swift 5.9 or later
-- Local MLX AI service running on port 11973
+- For local AI services:
+  - MLX service running on port 11973 (optional)
+  - Ollama service running on port 11434 (optional)
 
-## Setup
+## Installation
 
-1. **Install Dependencies**:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/caraveo/Photon.git
+   cd Photon
+   ```
+
+2. **Build the project**:
    ```bash
    swift build
    ```
 
-2. **Start Local MLX AI Service**:
-   Ensure your MLX AI service is running on `http://localhost:11973`
-
-3. **Run the Application**:
-   
-   **Option 1: Using the launch script (Recommended)**:
-   ```bash
-   ./run.sh
-   ```
-   
-   **Option 2: Direct run**:
+3. **Run the application**:
    ```bash
    swift run Photon
    ```
-   
-   **Note**: When the app launches, a window should appear. If you see input going to the terminal instead of the app window:
-   - Click on the Photon window to bring it to focus
-   - Press `Cmd+Tab` to switch to the Photon app
-   - The app window should be visible in your Dock
+
+   Or use the launch script:
+   ```bash
+   ./run.sh
+   ```
+
+## Usage
+
+### Basic Navigation
+
+- **Search**: Type in the search field and press Enter to search
+- **AI Search**: Click the "AI" button or use the AI search feature
+- **New Tab**: Press `CMD+T` or `CTRL+T`
+- **Navigation**: Use the `<`, `>`, and refresh icons in the search field
+
+### AI Features
+
+1. **Connect AI Service**:
+   - Go to `File → Settings` (or press `CMD+,`)
+   - Select your AI provider
+   - For cloud services (OpenAI, Mistral), enter your API key
+   - Click "Connect" to verify connection
+
+2. **Use AI Search**:
+   - Type your query in the search field
+   - Click the "AI" button to get AI-powered responses
+   - View responses as cards with relevant URLs
+
+3. **Settings**:
+   - Hide AI service selector in search field for a cleaner interface
+   - Choose default AI provider and model
+   - Manage API keys securely
 
 ## Project Structure
 
 ```
 Photon/
 ├── Sources/
-│   ├── PhotonApp.swift          # Main app entry point
+│   ├── PhotonApp.swift              # Main app entry point
 │   ├── Models/
-│   │   └── BrowserState.swift    # Browser state management
+│   │   ├── BrowserState.swift       # Browser state management
+│   │   ├── Tab.swift                # Tab management
+│   │   ├── AIProvider.swift         # AI provider definitions
+│   │   └── AIResponse.swift         # AI response data structures
 │   ├── Views/
-│   │   ├── MainBrowserView.swift # Main layout
-│   │   ├── BrowserView.swift     # Browser component
-│   │   └── AIConduitBar.swift    # AI interaction panel
+│   │   ├── MainBrowserView.swift    # Main layout
+│   │   ├── BrowserView.swift        # Browser component
+│   │   ├── TabBarView.swift         # Tab bar UI
+│   │   ├── TabBrowserView.swift     # Tab content view
+│   │   ├── AIComponents.swift       # AI-related UI components
+│   │   └── SettingsView.swift       # Settings panel
 │   ├── Services/
-│   │   └── LocalAIService.swift  # AI service integration
+│   │   ├── LocalAIService.swift     # AI service integration
+│   │   └── PromptGenerator.swift    # AI prompt generation
 │   └── Bridge/
-│       ├── MetalBridge.swift     # Swift bridge implementation
-│       └── typescript-bridge.ts  # TypeScript bridge
-├── Package.swift                 # Swift Package Manager config
+│       ├── MetalBridge.swift        # Swift bridge implementation
+│       └── typescript-bridge.ts     # TypeScript bridge
+├── Package.swift                    # Swift Package Manager config
 └── README.md
 ```
 
-## METAL Bridge
+## Architecture
 
-The METAL (Swift/TypeScript) bridge enables communication between:
-- Swift layer (native macOS code)
-- TypeScript layer (web content scripts)
-- Local AI service (MLX AI)
+### Components
 
-This allows web pages to interact with the local AI service through the native Swift layer.
+1. **MainBrowserView**: Main browser interface orchestrating all components
+2. **TabManager**: Manages multiple browser tabs with independent states
+3. **LocalAIService**: Handles communication with AI providers
+4. **MetalBridge**: Swift/TypeScript bridge for cross-layer communication
+
+### Data Flow
+
+```
+View (SwiftUI) → BrowserState/TabManager → WebView (WKWebView)
+                ↓
+            UnifiedSearchField → LocalAIService → AI Providers
+                ↓
+            AI Response Cards → Display Results
+```
 
 ## Development
 
@@ -103,7 +136,17 @@ swift build -c release
 swift test
 ```
 
+## Keyboard Shortcuts
+
+- `CMD+T` / `CTRL+T`: New tab
+- `CMD+,`: Open Settings
+- `Enter`: Search/Navigate
+- `ESC`: Close AI cards (when visible)
+
 ## License
 
 MIT License
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
