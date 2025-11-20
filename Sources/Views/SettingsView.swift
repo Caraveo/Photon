@@ -20,9 +20,11 @@ struct SettingsView: View {
                 Spacer()
                 
                 Button(action: {
-                    // Close window without triggering problematic animations
-                    // Using orderOut instead of close/performClose to avoid animation crash
+                    // Close window safely
                     if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
+                        // Cancel any running tasks before closing
+                        aiService.connectionTask?.cancel()
+                        // Use orderOut to avoid animation issues
                         window.orderOut(nil)
                     } else {
                         dismiss()
@@ -246,6 +248,10 @@ struct SettingsView: View {
             // Load current API keys into input fields (masked)
             openAIKeyInput = settings.openAIKey.isEmpty ? "" : "••••••••••••"
             mistralKeyInput = settings.mistralKey.isEmpty ? "" : "••••••••••••"
+        }
+        .onDisappear {
+            // Cancel any running connection tasks when view disappears
+            aiService.connectionTask?.cancel()
         }
     }
 }

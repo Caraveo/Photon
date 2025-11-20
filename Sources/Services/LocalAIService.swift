@@ -9,7 +9,7 @@ class LocalAIService: ObservableObject {
     private var session: URLSession
     private var metalBridge: MetalBridge?
     var settings: AISettings
-    private var connectionTask: Task<Void, Never>?
+    var connectionTask: Task<Void, Never>?
     
     init(settings: AISettings = AISettings()) {
         self.session = URLSession.shared

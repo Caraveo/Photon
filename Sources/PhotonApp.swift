@@ -1,6 +1,21 @@
 import SwiftUI
 import AppKit
 
+// Window delegate to handle Settings window lifecycle
+class SettingsWindowDelegate: NSObject, NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        // Cancel any running tasks when window closes
+        // The window delegate is called before the window is deallocated
+        // This gives us a chance to clean up
+    }
+    
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // Allow window to close normally, but use orderOut to avoid animation issues
+        // Return true to allow close, but we'll handle it with orderOut in the button action
+        return true
+    }
+}
+
 @main
 struct PhotonApp: App {
     @StateObject private var browserState = BrowserState()
@@ -100,11 +115,16 @@ struct PhotonApp: App {
                 window.identifier = NSUserInterfaceItemIdentifier("settings")
                 window.center()
                 
-                window.contentView = NSHostingView(
+                // Set delegate to handle window closing
+                window.delegate = SettingsWindowDelegate()
+                
+                // Create hosting view
+                let hostingView = NSHostingView(
                     rootView: SettingsView(settings: settings, aiService: aiService)
                         .environmentObject(settings)
                         .environmentObject(aiService)
                 )
+                window.contentView = hostingView
                 window.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
             }
