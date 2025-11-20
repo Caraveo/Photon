@@ -15,6 +15,12 @@ if [ ! -d "$APP_BUNDLE" ]; then
     exit 1
 fi
 
+# Clean resource forks and Finder metadata (required for code signing)
+echo "Cleaning resource forks and metadata..."
+find "$APP_BUNDLE" -type f -exec xattr -c {} \; 2>/dev/null || true
+find "$APP_BUNDLE" -type f -exec xattr -d com.apple.ResourceFork {} \; 2>/dev/null || true
+find "$APP_BUNDLE" -type f -exec xattr -d com.apple.FinderInfo {} \; 2>/dev/null || true
+
 # Function to find signing identity
 find_signing_identity() {
     local identity_type="$1"
