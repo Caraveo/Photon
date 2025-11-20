@@ -150,9 +150,10 @@ struct MainBrowserView: View {
                                 text: $searchText,
                                 isActive: $isSearchActive,
                                 onSearch: handleSearch,
-                                onAISearch: handleAISearch
+                                onAISearch: handleAISearch,
+                                activeTab: tabManager.activeTab
                             )
-                            .frame(width: 700)
+                            .frame(width: 800)
                             .environmentObject(settings)
                             .opacity(isSearchFieldVisible ? 1 : 0)
                             .scaleEffect(isSearchFieldVisible ? 1 : 0.95)
@@ -166,7 +167,8 @@ struct MainBrowserView: View {
                                     text: $searchText,
                                     isActive: $isSearchActive,
                                     onSearch: handleSearch,
-                                    onAISearch: handleAISearch
+                                    onAISearch: handleAISearch,
+                                    activeTab: tabManager.activeTab
                                 )
                                 .padding(.horizontal, 40)
                                 .padding(.bottom, 40)
@@ -574,6 +576,7 @@ struct UnifiedSearchField: View {
     @EnvironmentObject var settings: AISettings
     let onSearch: () -> Void
     let onAISearch: () -> Void
+    let activeTab: BrowserTab?
     @FocusState private var isFocused: Bool
     @State private var showModelPicker: Bool = false
     @State private var showAPIKeyDialog: Bool = false
@@ -581,6 +584,45 @@ struct UnifiedSearchField: View {
     
     var body: some View {
         HStack(spacing: 8) {
+            // Navigation controls: Back, Forward, Refresh
+            HStack(spacing: 4) {
+                // Back button
+                Button(action: {
+                    activeTab?.goBack()
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(activeTab?.canGoBack == true ? .primary : .secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .disabled(activeTab?.canGoBack != true)
+                
+                // Forward button
+                Button(action: {
+                    activeTab?.goForward()
+                }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(activeTab?.canGoForward == true ? .primary : .secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .disabled(activeTab?.canGoForward != true)
+                
+                // Refresh button
+                Button(action: {
+                    activeTab?.reload()
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.trailing, 4)
+            
             // Discreet Model Selector Dropdown - only show if not hidden in settings
             if !settings.hideAIServiceInSearch {
                 ModelSelectorDropdown(
