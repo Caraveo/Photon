@@ -1,12 +1,12 @@
 # Photon Browser
 
-A modern macOS browser built with SwiftUI, Chromium (WebKit), and integrated local Mistral AI support.
+A modern macOS browser built with SwiftUI, Chromium (WebKit), and integrated local MLX AI support.
 
 ## Features
 
 - **Chromium-based Rendering**: Uses WKWebView (WebKit) for web content rendering
 - **SwiftUI Interface**: Modern, native macOS UI
-- **AI Conduit Bar**: Middle panel for interacting with local Mistral AI
+- **AI Conduit Bar**: Middle panel for interacting with local MLX AI
 - **METAL Bridge**: Swift/TypeScript communication layer for seamless integration
 
 ## Architecture
@@ -15,7 +15,7 @@ A modern macOS browser built with SwiftUI, Chromium (WebKit), and integrated loc
 
 1. **BrowserView**: Main browser interface with navigation controls
 2. **AIConduitBar**: Middle panel for AI interactions
-3. **LocalAIService**: Service for communicating with local Mistral AI instance
+3. **LocalAIService**: Service for communicating with local MLX AI instance
 4. **MetalBridge**: Swift/TypeScript bridge for cross-layer communication
 
 ### Data Flow (Conduit)
@@ -23,14 +23,14 @@ A modern macOS browser built with SwiftUI, Chromium (WebKit), and integrated loc
 ```
 View (SwiftUI) → BrowserState → WebView (WKWebView)
                 ↓
-            AIConduitBar → LocalAIService → MetalBridge → TypeScript Bridge → Mistral AI (localhost:6000)
+            AIConduitBar → LocalAIService → MetalBridge → TypeScript Bridge → MLX AI (localhost:11973)
 ```
 
 ## Requirements
 
 - macOS 13.0 or later
 - Swift 5.9 or later
-- Local Mistral AI service running on port 6000
+- Local MLX AI service running on port 11973
 
 ## Setup
 
@@ -39,8 +39,8 @@ View (SwiftUI) → BrowserState → WebView (WKWebView)
    swift build
    ```
 
-2. **Start Local Mistral AI Service**:
-   Ensure your Mistral AI service is running on `http://localhost:6000`
+2. **Start Local MLX AI Service**:
+   Ensure your MLX AI service is running on `http://localhost:11973`
 
 3. **Run the Application**:
    ```bash
@@ -73,7 +73,7 @@ Photon/
 The METAL (Swift/TypeScript) bridge enables communication between:
 - Swift layer (native macOS code)
 - TypeScript layer (web content scripts)
-- Local AI service (Mistral AI)
+- Local AI service (MLX AI)
 
 This allows web pages to interact with the local AI service through the native Swift layer.
 
