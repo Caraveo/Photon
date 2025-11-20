@@ -159,7 +159,7 @@ class LocalAIService: ObservableObject {
                     }
                 }
             } catch {
-                print("⚠️ [DEBUG] Failed to fetch MLX models: \(error.localizedDescription)")
+                // Failed to fetch MLX models
             }
             
         case .ollama:
@@ -189,7 +189,7 @@ class LocalAIService: ObservableObject {
                     }
                 }
             } catch {
-                print("⚠️ [DEBUG] Failed to fetch Ollama models: \(error.localizedDescription)")
+                // Failed to fetch Ollama models
             }
             
         case .openai, .mistral:

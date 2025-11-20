@@ -62,7 +62,7 @@ class MetalBridge {
         
         // Error handler
         context.exceptionHandler = { context, exception in
-            print("JS Error: \(exception?.toString() ?? "Unknown error")")
+            // JS Error occurred
         }
     }
     
@@ -102,7 +102,7 @@ class MetalBridge {
     
     private func handleMessageFromJS(message: String) async {
         // Handle messages from JavaScript/TypeScript layer
-        print("Received from JS: \(message)")
+        // Received message from JS
     }
     
     func injectIntoWebView(_ webView: WKWebView) {

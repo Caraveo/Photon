@@ -23,7 +23,6 @@ struct AIResponseCardView: View {
             // Relevant URL Section - Subtle at bottom
             if let url = card.relevantURL {
                 Button(action: {
-                    print("🔗 [DEBUG] Clicked URL: \(url.absoluteString)")
                     onURLClick(url)
                 }) {
                     HStack(spacing: 6) {

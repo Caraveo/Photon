@@ -2,9 +2,6 @@ import SwiftUI
 import AppKit
 
 struct MainBrowserView: View {
-    init() {
-        print("🚀 [DEBUG] MainBrowserView initialized")
-    }
     @EnvironmentObject var browserState: BrowserState
     @EnvironmentObject var aiService: LocalAIService
     @EnvironmentObject var settings: AISettings
@@ -80,7 +77,6 @@ struct MainBrowserView: View {
                             HStack(spacing: 16) {
                                 // Close button - make sure it's clickable
                                 Button(action: {
-                                    print("🔴 [DEBUG] Close button clicked")
                                     withAnimation {
                                         activeTab.aiResponseCards.removeAll()
                                         activeTab.isProcessingAI = false
@@ -234,7 +230,6 @@ struct MainBrowserView: View {
     
     private func handleSearch() {
         guard !searchText.isEmpty else { return }
-        print("🔍 [DEBUG] Handling search: \(searchText)")
         
         let query = searchText
         searchText = ""
@@ -263,7 +258,6 @@ struct MainBrowserView: View {
     private func generateAndRunMultiplePrompts(for query: String) {
         guard let activeTab = tabManager.activeTab else { return }
         
-        print("🎯 [DEBUG] Generating 3 prompts for: \(query)")
         activeTab.isProcessingAI = true
         
         // Clear previous cards for this search
@@ -271,7 +265,6 @@ struct MainBrowserView: View {
         
         // Only proceed if already connected - no auto-connect
         if !aiService.isConnected {
-            print("⚠️ [DEBUG] AI service not connected. Please connect in Settings.")
             activeTab.isProcessingAI = false
             let errorCard = AIResponseCard(
                 response: "AI service not connected. Please connect in Settings (File → Settings) or click the Connect button.",
@@ -295,22 +288,15 @@ struct MainBrowserView: View {
         var completedCount = 0
         let totalPrompts = prompts.count
         
-        print("📝 [DEBUG] Generated prompts:")
-        for (mode, prompt) in prompts {
-            print("  - \(mode.rawValue): \(prompt)")
-        }
-        
         // Run all 3 prompts in parallel
         await withTaskGroup(of: (PromptMode, Result<AIResponse, Error>).self) { group in
             for (mode, prompt) in prompts {
-                group.addTask {
-                    do {
-                        print("🚀 [DEBUG] Sending request for \(mode.rawValue) mode")
-                        let response = try await aiService.sendMessage(prompt, model: selectedModel)
-                        return (mode, .success(response))
-                    } catch {
-                        print("❌ [DEBUG] Error in \(mode.rawValue) mode: \(error.localizedDescription)")
-                        return (mode, .failure(error))
+                    group.addTask {
+                        do {
+                            let response = try await aiService.sendMessage(prompt, model: selectedModel)
+                            return (mode, .success(response))
+                        } catch {
+                            return (mode, .failure(error))
                     }
                 }
             }
@@ -328,12 +314,10 @@ struct MainBrowserView: View {
                             query: query,
                             promptMode: mode
                         )
-                        activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
-                        print("✅ [DEBUG] Received response for \(mode.rawValue) mode (\(completedCount)/\(totalPrompts))")
-                        
-                    case .failure(let error):
-                        print("❌ [DEBUG] Error for \(mode.rawValue) mode: \(error.localizedDescription)")
-                        let errorCard = AIResponseCard(
+                            activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
+                            
+                        case .failure(let error):
+                            let errorCard = AIResponseCard(
                             response: "Error: \(error.localizedDescription)",
                             relevantURL: nil,
                             query: query,
@@ -342,11 +326,10 @@ struct MainBrowserView: View {
                         activeTab.aiResponseCards.insert(errorCard, at: 0)
                     }
                     
-                    // Check if all requests are done
-                    if completedCount >= totalPrompts {
-                        activeTab.isProcessingAI = false
-                        print("✨ [DEBUG] All \(totalPrompts) responses completed")
-                    }
+                        // Check if all requests are done
+                        if completedCount >= totalPrompts {
+                            activeTab.isProcessingAI = false
+                        }
                 }
             }
         }

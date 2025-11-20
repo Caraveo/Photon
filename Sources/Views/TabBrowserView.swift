@@ -17,11 +17,9 @@ struct TabBrowserWebViewRepresentable: NSViewRepresentable {
     func makeNSView(context: Context) -> BrowserWebView {
         // Only create web view if it doesn't exist
         if let existingWebView = tab.webView {
-            print("🌐 [DEBUG] Reusing existing BrowserWebView for tab: \(tab.id)")
             return existingWebView
         }
         
-        print("🌐 [DEBUG] Creating new BrowserWebView for tab: \(tab.id)")
         let webView = BrowserWebView()
         webView.setTab(tab)
         tab.setWebView(webView)
