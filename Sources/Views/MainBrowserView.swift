@@ -104,22 +104,10 @@ struct MainBrowserView: View {
                                     .transition(.move(edge: .trailing).combined(with: .opacity))
                                 }
                                 
-                                // Processing indicator
+                                // Processing indicator with thinking messages
                                 if activeTab.isProcessingAI {
-                                    HStack(spacing: 12) {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                        Text("Generating...")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(Color(NSColor.windowBackgroundColor))
-                                            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
-                                    )
-                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                                    ThinkingIndicatorView()
+                                        .transition(.move(edge: .trailing).combined(with: .opacity))
                                 }
                             }
                             .padding(.top, tabBarHeight + 16)
