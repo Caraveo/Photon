@@ -113,6 +113,9 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
             }
         }
         
+        // Extract favicon
+        extractFavicon(from: webView)
+        
         // Make scrollbars transparent using AppKit
         DispatchQueue.main.async {
             if let scrollView = webView.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
@@ -219,5 +222,76 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
         })();
         """
         evaluateJavaScript(resumeScript, completionHandler: nil)
+    }
+    
+    // MARK: - Favicon Extraction
+    
+    private func extractFavicon(from webView: WKWebView) {
+        // Try multiple methods to get favicon
+        let faviconScript = """
+        (function() {
+            // Method 1: Check for link rel="icon" or "shortcut icon"
+            var faviconLink = document.querySelector('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+            if (faviconLink && faviconLink.href) {
+                return faviconLink.href;
+            }
+            
+            // Method 2: Try common favicon paths
+            var baseURL = window.location.origin;
+            var commonPaths = ['/favicon.ico', '/favicon.png', '/apple-touch-icon.png'];
+            for (var i = 0; i < commonPaths.length; i++) {
+                var testURL = baseURL + commonPaths[i];
+                // Return the first common path (we'll verify it exists on Swift side)
+                return testURL;
+            }
+            
+            // Method 3: Fallback to default favicon path
+            return baseURL + '/favicon.ico';
+        })();
+        """
+        
+        webView.evaluateJavaScript(faviconScript) { [weak self] result, error in
+            guard let self = self, let faviconURLString = result as? String else { return }
+            
+            // Handle relative URLs
+            var faviconURL: URL?
+            if let url = URL(string: faviconURLString) {
+                if url.scheme != nil {
+                    faviconURL = url
+                } else if let baseURL = webView.url {
+                    faviconURL = URL(string: faviconURLString, relativeTo: baseURL)
+                }
+            }
+            
+            guard let finalURL = faviconURL else { return }
+            
+            // Download and set favicon
+            self.loadFavicon(from: finalURL)
+        }
+    }
+    
+    private func loadFavicon(from url: URL) {
+        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self,
+                  let data = data,
+                  error == nil,
+                  let image = NSImage(data: data) else {
+                return
+            }
+            
+            DispatchQueue.main.async {
+                // Resize favicon to 16x16 for tab display
+                let resizedImage = NSImage(size: NSSize(width: 16, height: 16))
+                resizedImage.lockFocus()
+                image.draw(in: NSRect(x: 0, y: 0, width: 16, height: 16),
+                          from: NSRect.zero,
+                          operation: .sourceOver,
+                          fraction: 1.0)
+                resizedImage.unlockFocus()
+                
+                self.tab?.favicon = resizedImage
+            }
+        }
+        task.resume()
     }
 }

@@ -24,11 +24,18 @@ struct PhotonApp: App {
                         app.setActivationPolicy(.regular)
                         app.activate(ignoringOtherApps: true)
                         
-                        // Bring window to front
+                        // Bring window to front and remove title
                         if let window = app.windows.first {
                             window.makeKeyAndOrderFront(nil)
                             window.center()
+                            window.title = "" // Remove window title
                         }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                    // Remove title when window becomes key
+                    if let window = notification.object as? NSWindow {
+                        window.title = ""
                     }
                 }
         }

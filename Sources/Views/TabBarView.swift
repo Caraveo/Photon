@@ -62,6 +62,11 @@ struct TabView: View {
                 ProgressView()
                     .scaleEffect(0.7)
                     .frame(width: 16, height: 16)
+            } else if let favicon = tab.favicon {
+                Image(nsImage: favicon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
             } else {
                 Image(systemName: "globe")
                     .font(.system(size: 13, weight: .medium))

@@ -10,6 +10,7 @@ class BrowserTab: ObservableObject, Identifiable {
     @Published var isLoading: Bool = false
     @Published var aiResponseCards: [AIResponseCard] = []
     @Published var isProcessingAI: Bool = false
+    @Published var favicon: NSImage?
     var webView: BrowserWebView?
     
     init(url: URL? = nil) {
