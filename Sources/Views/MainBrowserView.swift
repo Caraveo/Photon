@@ -11,6 +11,11 @@ struct MainBrowserView: View {
     @StateObject private var tabManager = TabManager()
     @State private var searchText: String = ""
     @State private var isSearchActive: Bool = false
+    @State private var isSearchFieldVisible: Bool = true
+    @State private var mouseLocation: NSPoint = .zero
+    @State private var lastMouseMoveTime: Date = Date()
+    @State private var hideTimer: Timer?
+    @State private var isScrolling: Bool = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -141,6 +146,8 @@ struct MainBrowserView: View {
                             )
                             .frame(width: 700)
                             .environmentObject(settings)
+                            .opacity(isSearchFieldVisible ? 1 : 0)
+                            .scaleEffect(isSearchFieldVisible ? 1 : 0.95)
                             .transition(.scale.combined(with: .opacity))
                         } else {
                             // Bottom search field when active
@@ -160,8 +167,18 @@ struct MainBrowserView: View {
                         }
                     }
                     .frame(width: geometry.size.width, height: browserHeight)
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if let window = NSApplication.shared.windows.first {
+                            let windowLocation = NSEvent.mouseLocation
+                            let windowFrame = window.frame
+                            let mouseY = windowLocation.y - windowFrame.minY
+                            handleMouseHover(hovering: hovering, mouseY: mouseY, browserHeight: browserHeight, topOffset: browserTopOffset)
+                        }
+                    }
                 }
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
+                .animation(.easeInOut(duration: 0.25), value: isSearchFieldVisible)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
@@ -169,6 +186,12 @@ struct MainBrowserView: View {
             // Initialize AI service with settings
             aiService.settings = settings
             // Don't auto-connect - user must connect manually
+            
+            // Start monitoring mouse movement and scrolling
+            startMouseMonitoring()
+        }
+        .onDisappear {
+            stopMouseMonitoring()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NewTab"))) { _ in
             tabManager.createNewTab()
@@ -310,6 +333,153 @@ struct MainBrowserView: View {
         
         // Use the same multi-prompt system for AI search
         generateAndRunMultiplePrompts(for: query)
+    }
+    
+    // MARK: - Mouse Movement & Scrolling Detection
+    
+    @State private var mouseMonitor: Any?
+    @State private var scrollMonitor: Any?
+    @State private var localMouseMonitor: Any?
+    @State private var localScrollMonitor: Any?
+    
+    private func startMouseMonitoring() {
+        // Monitor mouse movement globally
+        let globalMouse = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]) { event in
+            DispatchQueue.main.async {
+                self.handleMouseEvent(event)
+            }
+        }
+        mouseMonitor = globalMouse
+        
+        // Monitor local mouse events (when window is active)
+        let localMouse = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]) { event in
+            DispatchQueue.main.async {
+                self.handleMouseEvent(event)
+            }
+            return event
+        }
+        localMouseMonitor = localMouse
+        
+        // Monitor scrolling globally
+        let globalScroll = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { event in
+            DispatchQueue.main.async {
+                self.handleScrollEvent(event)
+            }
+        }
+        scrollMonitor = globalScroll
+        
+        // Monitor scrolling locally
+        let localScroll = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { event in
+            DispatchQueue.main.async {
+                self.handleScrollEvent(event)
+            }
+            return event
+        }
+        localScrollMonitor = localScroll
+    }
+    
+    private func stopMouseMonitoring() {
+        if let monitor = mouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseMonitor = nil
+        }
+        if let monitor = localMouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMouseMonitor = nil
+        }
+        if let monitor = scrollMonitor {
+            NSEvent.removeMonitor(monitor)
+            scrollMonitor = nil
+        }
+        if let monitor = localScrollMonitor {
+            NSEvent.removeMonitor(monitor)
+            localScrollMonitor = nil
+        }
+    }
+    
+    private func handleMouseEvent(_ event: NSEvent) {
+        guard let window = NSApplication.shared.windows.first else { return }
+        
+        let windowLocation = event.locationInWindow
+        let screenLocation = window.convertPoint(toScreen: windowLocation)
+        mouseLocation = screenLocation
+        lastMouseMoveTime = Date()
+        
+        // Get window frame
+        let windowFrame = window.frame
+        let mouseY = screenLocation.y - windowFrame.minY
+        let windowHeight = windowFrame.height
+        
+        // Show search field if mouse is in top 15% of window or if mouse hasn't moved recently
+        let topThreshold = windowHeight * 0.15
+        let shouldShow = mouseY > (windowHeight - topThreshold) || !isScrolling
+        
+        updateSearchFieldVisibility(shouldShow: shouldShow)
+    }
+    
+    private func handleScrollEvent(_ event: NSEvent) {
+        // User is scrolling - hide search field
+        isScrolling = true
+        updateSearchFieldVisibility(shouldShow: false)
+        
+        // Reset scrolling flag after a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isScrolling = false
+            // Check if mouse is in top area to show search field again
+            if self.mouseLocation.y > 0 {
+                let window = NSApplication.shared.windows.first
+                if let window = window {
+                    let windowHeight = window.frame.height
+                    let mouseY = self.mouseLocation.y - window.frame.minY
+                    let topThreshold = windowHeight * 0.15
+                    if mouseY > (windowHeight - topThreshold) {
+                        self.updateSearchFieldVisibility(shouldShow: true)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleMouseHover(hovering: Bool, mouseY: CGFloat, browserHeight: CGFloat, topOffset: CGFloat) {
+        if hovering {
+            // Mouse is hovering over the browser area
+            let relativeY = mouseY - topOffset
+            let topThreshold = browserHeight * 0.15
+            
+            // Show if mouse is in top 15% of browser area
+            if relativeY < topThreshold {
+                updateSearchFieldVisibility(shouldShow: true)
+            } else if !isScrolling {
+                // Hide if mouse is lower and not scrolling
+                updateSearchFieldVisibility(shouldShow: false)
+            }
+        }
+    }
+    
+    private func updateSearchFieldVisibility(shouldShow: Bool) {
+        // Don't hide if search is active (user is typing)
+        if isSearchActive {
+            isSearchFieldVisible = true
+            return
+        }
+        
+        // Cancel existing timer
+        hideTimer?.invalidate()
+        
+        if shouldShow {
+            // Show immediately
+            isSearchFieldVisible = true
+        } else {
+            // Hide after a short delay (feels more natural)
+            hideTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { _ in
+                DispatchQueue.main.async {
+                    // Only hide if still not active and not scrolling
+                    if !self.isSearchActive && !self.isScrolling {
+                        self.isSearchFieldVisible = false
+                    }
+                }
+            }
+        }
     }
 }
 
