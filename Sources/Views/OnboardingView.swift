@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct OnboardingView: View {
     @ObservedObject var settings: AISettings
@@ -87,8 +88,17 @@ struct OnboardingView: View {
             
             Button(action: {
                 settings.setSearchEngine(selectedSearchEngine)
-                withAnimation {
-                    currentStep = .aiModel
+                
+                // Skip AI setup for Google and DuckDuckGo, go directly to browser
+                if selectedSearchEngine == .google || selectedSearchEngine == .duckduckgo {
+                    settings.completeOnboarding()
+                    // Connect to AI service (will be used for Photon Search if selected later)
+                    aiService.connect()
+                } else {
+                    // Show AI setup for Photon Search
+                    withAnimation {
+                        currentStep = .aiModel
+                    }
                 }
             }) {
                 Text("Continue")
@@ -340,11 +350,23 @@ struct SearchEngineCard: View {
         Button(action: action) {
             VStack(spacing: 20) {
                 Group {
-                    if let logoName = engine.logoImageName,
-                       let nsImage = NSImage(named: logoName) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
+                    if let logoName = engine.logoImageName {
+                        // Try to load from bundle
+                        if let imagePath = Bundle.main.path(forResource: logoName, ofType: "png"),
+                           let nsImage = NSImage(contentsOfFile: imagePath) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } else if let nsImage = NSImage(named: logoName) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } else {
+                            // Fallback to SF Symbol
+                            Image(systemName: engine.icon)
+                                .font(.system(size: 48))
+                                .foregroundColor(isSelected ? .white : .blue)
+                        }
                     } else {
                         Image(systemName: engine.icon)
                             .font(.system(size: 48))
