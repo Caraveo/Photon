@@ -32,6 +32,14 @@ struct PhotonApp: App {
         .defaultSize(width: 1400, height: 900)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            
+            // Add keyboard shortcuts
+            CommandGroup(after: .newItem) {
+                Button("New Tab") {
+                    // This will be handled by TabBarView
+                }
+                .keyboardShortcut("t", modifiers: .command)
+            }
         }
     }
 }

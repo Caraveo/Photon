@@ -7,6 +7,7 @@ struct MainBrowserView: View {
     @EnvironmentObject var browserState: BrowserState
     @EnvironmentObject var aiService: LocalAIService
     @StateObject private var settings = AISettings()
+    @StateObject private var tabManager = TabManager()
     @State private var searchText: String = ""
     @State private var isSearchActive: Bool = false
     @State private var aiResponseCards: [AIResponseCard] = []
@@ -36,7 +37,9 @@ struct MainBrowserView: View {
                             HStack(spacing: 20) {
                                 ForEach(aiResponseCards) { card in
                                     AIResponseCardView(card: card) { url in
-                                        browserState.navigate(to: url.absoluteString)
+                                        if let activeTab = tabManager.activeTab {
+                                            activeTab.navigate(to: url.absoluteString)
+                                        }
                                     }
                                     .transition(.move(edge: .top).combined(with: .opacity))
                                 }
@@ -69,10 +72,14 @@ struct MainBrowserView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             
+            // Tab Bar
+            TabBarView(tabManager: tabManager)
+            
             // Main browser view - pushed down when cards are visible
-            BrowserWebViewRepresentable()
-                .environmentObject(browserState)
-                .ignoresSafeArea()
+            if let activeTab = tabManager.activeTab {
+                TabBrowserView(tab: activeTab)
+                    .id(activeTab.id) // Force view update on tab switch
+            }
             
             // Unified Search/Input Field - Overlay on browser
             ZStack {
@@ -114,6 +121,17 @@ struct MainBrowserView: View {
                 aiService.connect()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NewTab"))) { _ in
+            tabManager.createNewTab()
+        }
+        .background(
+            // Handle CMD+T keyboard shortcut
+            Button("New Tab") {
+                tabManager.createNewTab()
+            }
+            .keyboardShortcut("t", modifiers: .command)
+            .hidden()
+        )
     }
     
     private func handleSearch() {
@@ -125,15 +143,17 @@ struct MainBrowserView: View {
         searchText = ""
         
         // Determine if it's a URL or search query
+        guard let activeTab = tabManager.activeTab else { return }
+        
         if query.hasPrefix("http://") || query.hasPrefix("https://") {
-            browserState.navigate(to: query)
+            activeTab.navigate(to: query)
         } else if query.contains(".") && !query.contains(" ") {
             // Likely a domain
-            browserState.navigate(to: "https://\(query)")
+            activeTab.navigate(to: "https://\(query)")
         } else {
             // Search query - use Google search
             let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            browserState.navigate(to: "https://www.google.com/search?q=\(encodedQuery)")
+            activeTab.navigate(to: "https://www.google.com/search?q=\(encodedQuery)")
             
             // Generate 3 different prompts and run them in parallel
             generateAndRunMultiplePrompts(for: query)

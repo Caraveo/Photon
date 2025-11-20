@@ -25,6 +25,7 @@ struct BrowserWebViewRepresentable: NSViewRepresentable {
 
 class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     private var browserState: BrowserState?
+    private var tab: BrowserTab?
     
     override init(frame: CGRect = .zero, configuration: WKWebViewConfiguration = WKWebViewConfiguration()) {
         let config = WKWebViewConfiguration()
@@ -46,6 +47,11 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     func setBrowserState(_ state: BrowserState) {
         self.browserState = state
         print("🌐 [DEBUG] BrowserState set")
+    }
+    
+    func setTab(_ tab: BrowserTab) {
+        self.tab = tab
+        print("🌐 [DEBUG] Tab set: \(tab.id)")
     }
     
     // MARK: - WKScriptMessageHandler
@@ -76,11 +82,17 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         print("🌐 [DEBUG] Navigation started")
         browserState?.updateLoadingState(true)
+        tab?.isLoading = true
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         print("🌐 [DEBUG] Navigation finished")
         browserState?.updateLoadingState(false)
+        tab?.isLoading = false
+        tab?.canGoBack = webView.canGoBack
+        tab?.canGoForward = webView.canGoForward
+        tab?.url = webView.url
+        
         browserState?.updateNavigationState(
             canGoBack: webView.canGoBack,
             canGoForward: webView.canGoForward
@@ -89,6 +101,7 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
             if let title = result as? String {
                 print("🌐 [DEBUG] Page title: \(title)")
                 self.browserState?.updateTitle(title)
+                self.tab?.title = title.isEmpty ? "New Tab" : title
             }
         }
     }
@@ -96,6 +109,7 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         print("❌ [DEBUG] Navigation failed: \(error.localizedDescription)")
         browserState?.updateLoadingState(false)
+        tab?.isLoading = false
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
