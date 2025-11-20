@@ -31,7 +31,7 @@ Built exclusively for macOS with SwiftUI and WebKit, Photon feels like it was al
 - **Context-Aware UI**: The interface adapts to your workflow
 
 ### **AI That Doesn't Intrude**
-Integrated AI support (MLX, Ollama, OpenAI, Mistral) that works in the background. Get answers without leaving your flow. Beautiful response cards appear above your content—never blocking, always helpful.
+Integrated AI support (MLX, Ollama, OpenAI, Mistral) that works in the background. Get answers without leaving your flow. Beautiful notification bubbles appear in the top-right corner—dismissible, expandable, and beautifully formatted with Markdown rendering. Real-time reasoning display shows AI thinking process.
 
 ### **Performance First**
 - **Tab Freezing**: Inactive tabs stay frozen, preventing unnecessary reloads
@@ -99,7 +99,10 @@ Photon includes powerful AI capabilities that stay out of your way:
 
 - **Local AI**: Run MLX or Ollama on your machine—privacy-first
 - **Cloud AI**: OpenAI and Mistral support for when you need more power
-- **Smart Responses**: AI answers appear as elegant cards with relevant URLs
+- **Beautiful Notifications**: AI responses appear as elegant, dismissible bubbles in the top-right corner
+- **Markdown Rendering**: Responses are beautifully formatted with proper spacing, headings, lists, and code blocks
+- **Real-Time Reasoning**: See AI thinking process for MLX models with reasoning sections
+- **Expandable View**: Click any notification bubble to expand to full mode
 - **Zero Friction**: AI works in the background, never interrupting your flow
 
 **Setup**: `File → Settings` (or `CMD+,`) → Choose your AI provider → Connect
@@ -177,6 +180,11 @@ Photon/
 - ✅ **Intelligent UI** - Interface that adapts to you
 - ✅ **Tab Management** - Multiple tabs with keyboard shortcuts
 - ✅ **AI Integration** - Optional, powerful, unobtrusive
+  - Beautiful Markdown-formatted responses
+  - Real-time reasoning display for MLX models
+  - Dismissible notification bubbles
+  - Expandable full-mode view
+- ✅ **Smart Search Field** - Appears on activity, hides on fast scroll or idle
 - ✅ **Performance Optimized** - Tab freezing, efficient rendering
 - ✅ **Privacy-First** - Local AI options, no tracking
 - ✅ **Open Source** - MIT License, fully transparent
