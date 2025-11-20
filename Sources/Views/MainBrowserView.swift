@@ -30,18 +30,7 @@ struct MainBrowserView: View {
     private var mainBrowserContent: some View {
         GeometryReader { geometry in
             let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
-            let aiNotificationsHeight: CGFloat = {
-                if let activeTab = tabManager.activeTab,
-                   (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
-                    // Calculate height based on number of notifications (each ~80px + spacing)
-                    let notificationCount = activeTab.aiNotifications.count
-                    let baseHeight: CGFloat = activeTab.isProcessingAI ? 60 : 0
-                    let notificationsHeight = CGFloat(notificationCount) * 90.0 + 32.0 // 90px per notification + padding
-                    return min(notificationsHeight + baseHeight, 400) // Max 400px height
-                }
-                return 0
-            }()
-            let browserTopOffset = tabBarHeight + aiNotificationsHeight
+            let browserTopOffset = tabBarHeight
             let browserHeight = geometry.size.height - browserTopOffset
             
             ZStack {
@@ -86,61 +75,60 @@ struct MainBrowserView: View {
                             .allowsHitTesting(true) // Tab bar should be clickable
                     }
                     
-                    // AI Notification Bubbles - Vertical stack below tab bar (for active tab)
-                    if let activeTab = tabManager.activeTab,
-                       (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
-                        VStack(spacing: 0) {
-                            ScrollView(.vertical, showsIndicators: false) {
-                                VStack(spacing: 12) {
-                                    // Notification bubbles
-                                    ForEach(activeTab.aiNotifications) { notification in
-                                        NotificationBubble(
-                                            notification: notification,
-                                            onDismiss: {
-                                                if let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notification.id }) {
-                                                    activeTab.aiNotifications.remove(at: index)
-                                                }
-                                            },
-                                            onURLClick: { url in
-                                                activeTab.navigate(to: url.absoluteString)
-                                            }
-                                        )
-                                        .transition(.move(edge: .top).combined(with: .opacity))
-                                    }
-                                    
-                                    // Processing indicator
-                                    if activeTab.isProcessingAI {
-                                        HStack(spacing: 12) {
-                                            ProgressView()
-                                                .scaleEffect(0.8)
-                                            Text("Generating...")
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .padding(12)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .fill(Color(NSColor.controlBackgroundColor))
-                                        )
-                                        .transition(.move(edge: .top).combined(with: .opacity))
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 16)
-                            }
-                            .frame(maxHeight: 400)
-                            .background(
-                                Color(NSColor.windowBackgroundColor)
-                                    .shadow(color: .black.opacity(0.1), radius: 8, y: 2)
-                            )
-                        }
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .allowsHitTesting(true) // Ensure notifications area is clickable
-                    }
                     
                     // Spacer that allows clicks to pass through to browser
                     Spacer()
                         .allowsHitTesting(false) // Allow clicks to pass through to browser
+                }
+                
+                // Notification Bubbles - Floating overlay in top right corner
+                if let activeTab = tabManager.activeTab,
+                   (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 12) {
+                                // Notification bubbles
+                                ForEach(activeTab.aiNotifications) { notification in
+                                    NotificationBubble(
+                                        notification: notification,
+                                        onDismiss: {
+                                            if let index = activeTab.aiNotifications.firstIndex(where: { $0.id == notification.id }) {
+                                                activeTab.aiNotifications.remove(at: index)
+                                            }
+                                        },
+                                        onURLClick: { url in
+                                            activeTab.navigate(to: url.absoluteString)
+                                        }
+                                    )
+                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                                }
+                                
+                                // Processing indicator
+                                if activeTab.isProcessingAI {
+                                    HStack(spacing: 12) {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                        Text("Generating...")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(Color(NSColor.windowBackgroundColor))
+                                            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+                                    )
+                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                                }
+                            }
+                            .padding(.top, tabBarHeight + 16)
+                            .padding(.trailing, 20)
+                        }
+                        Spacer()
+                    }
+                    .allowsHitTesting(true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 
                 // Unified Search/Input Field - Overlay on browser (only in browser area, not over tab bar)
@@ -541,19 +529,9 @@ struct MainBrowserView: View {
         let mouseY = screenLocation.y - windowFrame.minY
         let windowHeight = windowFrame.height
         
-        // Calculate if click is in browser area (below tab bar and AI cards)
+        // Calculate if click is in browser area (below tab bar)
         let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
-        let aiNotificationsHeight: CGFloat = {
-            if let activeTab = tabManager.activeTab,
-               (!activeTab.aiNotifications.isEmpty || activeTab.isProcessingAI) {
-                let notificationCount = activeTab.aiNotifications.count
-                let baseHeight: CGFloat = activeTab.isProcessingAI ? 60 : 0
-                let notificationsHeight = CGFloat(notificationCount) * 90.0 + 32.0
-                return min(notificationsHeight + baseHeight, 400)
-            }
-            return 0
-        }()
-        let browserTopOffset = tabBarHeight + aiNotificationsHeight
+        let browserTopOffset = tabBarHeight
         let browserStartY = windowHeight - browserTopOffset
         
         // If click is in browser area (not in search field or cards), hide search field

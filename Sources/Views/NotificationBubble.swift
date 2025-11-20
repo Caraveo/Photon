@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Notification bubble that can be dismissed
+// Notification bubble that can be dismissed - rounded bubble square with beautiful shadow
 struct NotificationBubble: View {
     let notification: AINotification
     let onDismiss: () -> Void
@@ -17,7 +17,7 @@ struct NotificationBubble: View {
                     if let promptMode = notification.promptMode {
                         HStack {
                             Text(promptMode.rawValue)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: 10, weight: .semibold))
                                 .foregroundColor(.secondary)
                             Spacer()
                         }
@@ -26,7 +26,7 @@ struct NotificationBubble: View {
                     // Response text
                     Text(notification.response)
                         .font(.system(size: 13))
-                        .lineLimit(3)
+                        .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
                     
@@ -59,23 +59,34 @@ struct NotificationBubble: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(.secondary.opacity(0.6))
+                        .foregroundColor(.secondary.opacity(0.5))
                 }
                 .buttonStyle(.plain)
                 .help("Dismiss")
             }
-            .padding(12)
-            .frame(maxWidth: 400)
+            .padding(16)
+            .frame(width: 360)
             .background(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(Color(NSColor.windowBackgroundColor))
-                    .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 6)
+                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.blue.opacity(0.3),
+                                Color.blue.opacity(0.1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .transition(.move(edge: .top).combined(with: .opacity))
+            .transition(.move(edge: .trailing).combined(with: .opacity).combined(with: .scale(scale: 0.95)))
         }
     }
 }
