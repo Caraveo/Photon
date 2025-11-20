@@ -7,78 +7,93 @@ struct AIResponseCardView: View {
     let onURLClick: (URL) -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Card Header
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.blue)
-                    .font(.caption)
-                Text("AI Response")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            // Minimal Header with Mode Badge
+            HStack(alignment: .top) {
+                if let mode = card.promptMode {
+                    Text(mode.rawValue)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(modeColor(mode))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(modeColor(mode).opacity(0.15))
+                        .cornerRadius(6)
+                }
                 Spacer()
-                Text(card.timestamp, style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Image(systemName: "sparkles")
+                    .foregroundColor(.blue.opacity(0.6))
+                    .font(.system(size: 12))
             }
             
-            // AI Response Content
+            // AI Response Content - Focus of the card
             Text(card.response)
-                .font(.body)
+                .font(.system(size: 15, weight: .regular))
+                .lineSpacing(4)
                 .textSelection(.enabled)
-                .padding(12)
+                .foregroundColor(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .fixedSize(horizontal: false, vertical: true)
             
-            // Relevant URL Section
+            // Relevant URL Section - Subtle
             if let url = card.relevantURL {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
+                Button(action: {
+                    print("🔗 [DEBUG] Clicked URL: \(url.absoluteString)")
+                    onURLClick(url)
+                }) {
+                    HStack(spacing: 8) {
                         Image(systemName: "link")
                             .foregroundColor(.blue)
-                            .font(.caption)
-                        Text("Relevant Link")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button(action: {
-                        print("🔗 [DEBUG] Clicked URL: \(url.absoluteString)")
-                        onURLClick(url)
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(url.host ?? "Link")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
-                                Text(url.absoluteString)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 11))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(url.host ?? "Link")
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(.blue)
+                            Text(url.absoluteString)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
+                        Spacer()
+                        Image(systemName: "arrow.right.circle.fill")
+                            .foregroundColor(.blue.opacity(0.6))
+                            .font(.system(size: 14))
                     }
-                    .buttonStyle(.plain)
+                    .padding(10)
+                    .background(Color.blue.opacity(0.08))
+                    .cornerRadius(8)
                 }
+                .buttonStyle(.plain)
             }
         }
-        .padding(12)
-        .background(Color(NSColor.windowBackgroundColor))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        .padding(20)
+        .frame(maxWidth: 600)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(NSColor.windowBackgroundColor))
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.blue.opacity(0.2), Color.purple.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+    }
+    
+    private func modeColor(_ mode: PromptMode) -> Color {
+        switch mode {
+        case .concise:
+            return .green
+        case .detailed:
+            return .blue
+        case .creative:
+            return .purple
+        }
     }
 }
 

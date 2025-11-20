@@ -17,11 +17,13 @@ struct AIResponseCard: Identifiable {
     let response: String
     let relevantURL: URL?
     let query: String
+    let promptMode: PromptMode?
     let timestamp = Date()
     
-    init(response: String, relevantURL: String?, query: String) {
+    init(response: String, relevantURL: String?, query: String, promptMode: PromptMode? = nil) {
         self.response = response
         self.query = query
+        self.promptMode = promptMode
         if let urlString = relevantURL, let url = URL(string: urlString) {
             self.relevantURL = url
         } else {

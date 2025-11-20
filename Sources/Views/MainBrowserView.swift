@@ -21,21 +21,35 @@ struct MainBrowserView: View {
                 .environmentObject(browserState)
                 .ignoresSafeArea()
             
-            // AI Response Cards overlay
+            // AI Response Cards overlay - Above search results
             VStack {
-                Spacer()
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 16) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 20) {
                         ForEach(aiResponseCards) { card in
                             AIResponseCardView(card: card) { url in
                                 browserState.navigate(to: url.absoluteString)
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 40)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                        
+                        if isProcessingAI {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Generating responses...")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .padding(.horizontal, 40)
                         }
                     }
-                    .padding(.bottom, isSearchActive ? 100 : 20)
+                    .padding(.top, 60)
+                    .padding(.bottom, 20)
                 }
-                .frame(maxHeight: 400)
+                .frame(maxHeight: 500)
+                Spacer()
             }
             
             // URL Bar at top - fades in/out on hover
@@ -115,56 +129,105 @@ struct MainBrowserView: View {
         print("🔍 [DEBUG] Handling search: \(searchText)")
         isSearchActive = true
         
+        let query = searchText
+        searchText = ""
+        
         // Determine if it's a URL or search query
-        if searchText.hasPrefix("http://") || searchText.hasPrefix("https://") {
-            browserState.navigate(to: searchText)
-        } else if searchText.contains(".") && !searchText.contains(" ") {
+        if query.hasPrefix("http://") || query.hasPrefix("https://") {
+            browserState.navigate(to: query)
+        } else if query.contains(".") && !query.contains(" ") {
             // Likely a domain
-            browserState.navigate(to: "https://\(searchText)")
+            browserState.navigate(to: "https://\(query)")
         } else {
             // Search query - use Google search
-            let encodedQuery = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
             browserState.navigate(to: "https://www.google.com/search?q=\(encodedQuery)")
+            
+            // Generate 3 different prompts and run them in parallel
+            generateAndRunMultiplePrompts(for: query)
+        }
+    }
+    
+    private func generateAndRunMultiplePrompts(for query: String) {
+        print("🎯 [DEBUG] Generating 3 prompts for: \(query)")
+        isProcessingAI = true
+        
+        // Clear previous cards for this search
+        aiResponseCards.removeAll()
+        
+        // Generate 3 different prompts
+        let prompts = PromptGenerator.generatePrompts(from: query)
+        let selectedModel = settings.selectedModel
+        var completedCount = 0
+        let totalPrompts = prompts.count
+        
+        print("📝 [DEBUG] Generated prompts:")
+        for (mode, prompt) in prompts {
+            print("  - \(mode.rawValue): \(prompt)")
         }
         
-        searchText = ""
+        // Run all 3 prompts in parallel
+        Task {
+            await withTaskGroup(of: (PromptMode, Result<AIResponse, Error>).self) { group in
+                for (mode, prompt) in prompts {
+                    group.addTask {
+                        do {
+                            print("🚀 [DEBUG] Sending request for \(mode.rawValue) mode")
+                            let response = try await aiService.sendMessage(prompt, model: selectedModel)
+                            return (mode, .success(response))
+                        } catch {
+                            print("❌ [DEBUG] Error in \(mode.rawValue) mode: \(error.localizedDescription)")
+                            return (mode, .failure(error))
+                        }
+                    }
+                }
+                
+                // Collect results as they complete
+                for await (mode, result) in group {
+                    await MainActor.run {
+                        completedCount += 1
+                        
+                        switch result {
+                        case .success(let response):
+                            let card = AIResponseCard(
+                                response: response.response,
+                                relevantURL: response.relevantURL,
+                                query: query,
+                                promptMode: mode
+                            )
+                            aiResponseCards.insert(card, at: 0) // Insert at top
+                            print("✅ [DEBUG] Received response for \(mode.rawValue) mode (\(completedCount)/\(totalPrompts))")
+                            
+                        case .failure(let error):
+                            print("❌ [DEBUG] Error for \(mode.rawValue) mode: \(error.localizedDescription)")
+                            let errorCard = AIResponseCard(
+                                response: "Error: \(error.localizedDescription)",
+                                relevantURL: nil,
+                                query: query,
+                                promptMode: mode
+                            )
+                            aiResponseCards.insert(errorCard, at: 0)
+                        }
+                        
+                        // Check if all requests are done
+                        if completedCount >= totalPrompts {
+                            isProcessingAI = false
+                            print("✨ [DEBUG] All \(totalPrompts) responses completed")
+                        }
+                    }
+                }
+            }
+        }
     }
     
     private func handleAISearch() {
         guard !searchText.isEmpty else { return }
-        let selectedModel = settings.selectedModel
-        print("🤖 [DEBUG] Handling AI search: \(searchText) with model: \(selectedModel.name)")
-        isSearchActive = true
-        isProcessingAI = true
-        
         let query = searchText
         searchText = ""
+        isSearchActive = true
         
-        Task {
-            do {
-                let response = try await aiService.sendMessage(query, model: selectedModel)
-                await MainActor.run {
-                    let card = AIResponseCard(
-                        response: response.response,
-                        relevantURL: response.relevantURL,
-                        query: response.query
-                    )
-                    aiResponseCards.append(card)
-                    isProcessingAI = false
-                }
-            } catch {
-                await MainActor.run {
-                    print("❌ [DEBUG] AI Error: \(error.localizedDescription)")
-                    let errorCard = AIResponseCard(
-                        response: "Error: \(error.localizedDescription)",
-                        relevantURL: nil,
-                        query: query
-                    )
-                    aiResponseCards.append(errorCard)
-                    isProcessingAI = false
-                }
-            }
-        }
+        // Use the same multi-prompt system for AI search
+        generateAndRunMultiplePrompts(for: query)
     }
 }
 
