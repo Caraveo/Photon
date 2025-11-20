@@ -88,6 +88,23 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
+                        
+                        // Search Field Position
+                        VStack(alignment: .leading, spacing: 8) {
+                            Picker("Search Field Position", selection: Binding(
+                                get: { settings.searchFieldPosition },
+                                set: { settings.setSearchFieldPosition($0) }
+                            )) {
+                                ForEach(SearchFieldPosition.allCases) { position in
+                                    Text(position.rawValue).tag(position)
+                                }
+                            }
+                            
+                            Text("Choose where the search prompt input appears when active. 'Top' aligns it to the top of the browser window, 'Bottom' aligns it to the bottom.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
                     } header: {
                         Text("AI Service Settings")
                     }

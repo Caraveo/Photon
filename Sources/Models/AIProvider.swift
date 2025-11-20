@@ -1,5 +1,12 @@
 import Foundation
 
+enum SearchFieldPosition: String, CaseIterable, Identifiable {
+    case top = "Top"
+    case bottom = "Bottom"
+    
+    var id: String { rawValue }
+}
+
 enum AIProvider: String, CaseIterable, Identifiable {
     case mlx = "MLX (Local)"
     case ollama = "Ollama (Local)"
@@ -45,12 +52,14 @@ class AISettings: ObservableObject {
     @Published var mistralKey: String = ""
     @Published var availableModels: [AIModel] = AIModel.defaultModels
     @Published var hideAIServiceInSearch: Bool = false
+    @Published var searchFieldPosition: SearchFieldPosition = .bottom
     
     private let openAIKeyKey = "openai_api_key"
     private let mistralKeyKey = "mistral_api_key"
     private let selectedProviderKey = "selected_ai_provider"
     private let selectedModelKey = "selected_ai_model"
     private let hideAIServiceKey = "hide_ai_service_in_search"
+    private let searchFieldPositionKey = "search_field_position"
     
     init() {
         loadSettings()
@@ -81,6 +90,12 @@ class AISettings: ObservableObject {
         
         // Load hide AI service setting
         hideAIServiceInSearch = UserDefaults.standard.bool(forKey: hideAIServiceKey)
+        
+        // Load search field position
+        if let positionString = UserDefaults.standard.string(forKey: searchFieldPositionKey),
+           let position = SearchFieldPosition(rawValue: positionString) {
+            searchFieldPosition = position
+        }
     }
     
     func saveOpenAIKey(_ key: String) {
@@ -111,6 +126,11 @@ class AISettings: ObservableObject {
     func setHideAIServiceInSearch(_ hide: Bool) {
         hideAIServiceInSearch = hide
         UserDefaults.standard.set(hide, forKey: hideAIServiceKey)
+    }
+    
+    func setSearchFieldPosition(_ position: SearchFieldPosition) {
+        searchFieldPosition = position
+        UserDefaults.standard.set(position.rawValue, forKey: searchFieldPositionKey)
     }
 }
 

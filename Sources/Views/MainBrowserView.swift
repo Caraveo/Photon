@@ -160,9 +160,12 @@ struct MainBrowserView: View {
                             .transition(.scale.combined(with: .opacity))
                             .allowsHitTesting(isSearchFieldVisible) // Only block when visible
                         } else {
-                            // Bottom search field when active
+                            // Positioned search field when active (TOP or BOTTOM based on settings)
                             VStack {
-                                Spacer()
+                                if settings.searchFieldPosition == .bottom {
+                                    Spacer()
+                                }
+                                
                                 UnifiedSearchField(
                                     text: $searchText,
                                     isActive: $isSearchActive,
@@ -171,9 +174,13 @@ struct MainBrowserView: View {
                                     activeTab: tabManager.activeTab
                                 )
                                 .padding(.horizontal, 40)
-                                .padding(.bottom, 40)
+                                .padding(settings.searchFieldPosition == .top ? .top : .bottom, 40)
                                 .environmentObject(settings)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                .transition(.move(edge: settings.searchFieldPosition == .top ? .top : .bottom).combined(with: .opacity))
+                                
+                                if settings.searchFieldPosition == .top {
+                                    Spacer()
+                                }
                             }
                         }
                     }
