@@ -12,16 +12,9 @@ struct OnboardingView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [
-                    Color(NSColor.windowBackgroundColor),
-                    Color(NSColor.windowBackgroundColor).opacity(0.8)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // White background
+            Color.white
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Progress indicator
@@ -40,13 +33,7 @@ struct OnboardingView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 60))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .foregroundColor(.blue)
                             
                             Text("Welcome to Photon")
                                 .font(.system(size: 42, weight: .bold))
@@ -74,7 +61,7 @@ struct OnboardingView: View {
                 }
             }
         }
-        .frame(width: 900, height: 700)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Search Engine Selection
@@ -109,14 +96,9 @@ struct OnboardingView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color.blue)
                     .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
             }
             .buttonStyle(.plain)
             .padding(.top, 20)
@@ -373,10 +355,7 @@ struct SearchEngineCard: View {
                     .frame(width: 100, height: 100)
                     .background(
                         Circle()
-                            .fill(isSelected ? 
-                                LinearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing) :
-                                LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
+                            .fill(isSelected ? Color.blue : Color(NSColor.controlBackgroundColor))
                     )
                 
                 Text(engine.rawValue)
@@ -422,10 +401,7 @@ struct AICategoryCard: View {
                     .frame(width: 80, height: 80)
                     .background(
                         Circle()
-                            .fill(isSelected ? 
-                                LinearGradient(colors: [category.color, category.color.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing) :
-                                LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
+                            .fill(isSelected ? category.color : Color(NSColor.controlBackgroundColor))
                     )
                 
                 Text(category.title)
@@ -502,15 +478,13 @@ struct ModelCard: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? 
-                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
-                            LinearGradient(colors: [Color(NSColor.controlBackgroundColor)], startPoint: .leading, endPoint: .trailing)
-                        )
+                        .fill(isSelected ? Color.blue : Color.white)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(isSelected ? Color.clear : Color(NSColor.separatorColor), lineWidth: 1)
                 )
+                .shadow(color: isSelected ? .black.opacity(0.1) : .clear, radius: 3, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
