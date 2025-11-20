@@ -20,8 +20,16 @@ struct SettingsView: View {
                 Spacer()
                 
                 Button(action: {
+                    // Use dismiss for proper SwiftUI window management
+                    // This avoids animation conflicts that cause crashes
                     if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
-                        window.close()
+                        // Disable animations to prevent crash during window close
+                        NSAnimationContext.runAnimationGroup({ context in
+                            context.duration = 0
+                            window.performClose(nil)
+                        })
+                    } else {
+                        dismiss()
                     }
                 }) {
                     Image(systemName: "xmark.circle.fill")

@@ -58,29 +58,28 @@ struct PhotonApp: App {
         // Settings window
         WindowGroup("Settings", id: "settings") {
             SettingsView(settings: settings, aiService: LocalAIService(settings: settings))
+                .environmentObject(settings)
         }
         .windowStyle(.automatic)
         .defaultSize(width: 700, height: 800)
     }
     
     private func openSettingsWindow() {
-        // Open settings window using NSApplication
+        // Open settings window using SwiftUI's window management
         DispatchQueue.main.async {
+            // Find existing settings window or let SwiftUI create it
             if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
                 window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
             } else {
-                // Create new settings window
-                let settingsWindow = NSWindow(
-                    contentRect: NSRect(x: 0, y: 0, width: 700, height: 800),
-                    styleMask: [.titled, .closable, .miniaturizable],
-                    backing: .buffered,
-                    defer: false
-                )
-                settingsWindow.identifier = NSUserInterfaceItemIdentifier("settings")
-                settingsWindow.title = "Settings"
-                settingsWindow.contentView = NSHostingView(rootView: SettingsView(settings: settings, aiService: LocalAIService(settings: settings)))
-                settingsWindow.center()
-                settingsWindow.makeKeyAndOrderFront(nil)
+                // Use NSApp to request window creation via WindowGroup
+                // SwiftUI will handle window creation automatically
+                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+                // Fallback: manually trigger window opening
+                if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
+                    window.makeKeyAndOrderFront(nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
             }
         }
     }
