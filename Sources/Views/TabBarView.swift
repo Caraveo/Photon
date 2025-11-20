@@ -38,11 +38,11 @@ struct TabBarView: View {
             }
         }
         .frame(height: 48)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(.clear)
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color(NSColor.separatorColor)),
+                .foregroundColor(Color(NSColor.separatorColor).opacity(0.2)),
             alignment: .bottom
         )
     }

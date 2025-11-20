@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AppKit
 
 // Simplified - just the web view representable for the unified view
 struct BrowserWebViewRepresentable: NSViewRepresentable {
@@ -39,6 +40,19 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
         // Add message handler for METAL bridge after super.init
         config.userContentController.add(self, name: "metalBridge")
         self.navigationDelegate = self
+        
+        // Make scrollbars transparent
+        self.setValue(false, forKey: "drawsBackground")
+        
+        // Configure scrollbars to be transparent using AppKit
+        DispatchQueue.main.async {
+            // Access the underlying scroll view
+            if let scrollView = self.enclosingScrollView {
+                scrollView.scrollerStyle = .overlay
+                scrollView.verticalScroller?.alphaValue = 0.0
+                scrollView.horizontalScroller?.alphaValue = 0.0
+            }
+        }
     }
     
     required init?(coder: NSCoder) {
@@ -98,6 +112,43 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
                 self.tab?.title = title.isEmpty ? "New Tab" : title
             }
         }
+        
+        // Make scrollbars transparent using AppKit
+        DispatchQueue.main.async {
+            if let scrollView = webView.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
+                scrollView.scrollerStyle = .overlay
+                if let verticalScroller = scrollView.verticalScroller {
+                    verticalScroller.alphaValue = 0.0
+                }
+                if let horizontalScroller = scrollView.horizontalScroller {
+                    horizontalScroller.alphaValue = 0.0
+                }
+            }
+        }
+        
+        // Inject CSS to make web content scrollbars transparent
+        let scrollbarCSS = """
+        (function() {
+            var style = document.createElement('style');
+            style.textContent = `
+                ::-webkit-scrollbar {
+                    width: 12px;
+                    height: 12px;
+                }
+                ::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                ::-webkit-scrollbar-thumb {
+                    background: transparent;
+                }
+                ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(0, 0, 0, 0.2);
+                }
+            `;
+            document.head.appendChild(style);
+        })();
+        """
+        webView.evaluateJavaScript(scrollbarCSS, completionHandler: nil)
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

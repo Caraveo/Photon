@@ -10,6 +10,7 @@ struct AIResponseCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             // AI Response Content - Focus of the card
             ScrollView(.vertical, showsIndicators: false) {
+                // Transparent scrollbar
                 Text(card.response)
                     .font(.system(size: 14, weight: .regular))
                     .lineSpacing(5)
