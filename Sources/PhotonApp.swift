@@ -12,8 +12,9 @@ struct PhotonApp: App {
                 .environmentObject(aiService)
                 .frame(minWidth: 1200, minHeight: 800)
         }
-        .windowStyle(.hiddenTitleBar)
+        .windowStyle(.automatic)
         .windowToolbarStyle(.unified)
+        .defaultSize(width: 1400, height: 900)
     }
 }
 
