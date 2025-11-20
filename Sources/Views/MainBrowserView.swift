@@ -701,9 +701,6 @@ struct UnifiedSearchField: View {
                 .fill(Color(NSColor.windowBackgroundColor))
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 4)
         )
-        .onAppear {
-            isFocused = true
-        }
         .sheet(isPresented: $showAPIKeyDialog) {
             APIKeyDialog(
                 provider: settings.selectedProvider,
