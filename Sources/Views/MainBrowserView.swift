@@ -226,8 +226,6 @@ struct MainBrowserView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .onAppear {
-            // Initialize AI service with settings
-            aiService.settings = settings
             // Don't auto-connect - user must connect manually
             
             // Start monitoring mouse movement and scrolling

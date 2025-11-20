@@ -5,16 +5,23 @@ import AppKit
 struct PhotonApp: App {
     @StateObject private var browserState = BrowserState()
     @StateObject private var settings = AISettings()
+    @StateObject private var aiService: LocalAIService
     
-    private var aiService: LocalAIService {
-        LocalAIService(settings: settings)
+    init() {
+        // Create settings first
+        let settings = AISettings()
+        // Create aiService with settings
+        let aiService = LocalAIService(settings: settings)
+        // Initialize state objects
+        _settings = StateObject(wrappedValue: settings)
+        _aiService = StateObject(wrappedValue: aiService)
     }
     
     var body: some Scene {
         WindowGroup {
             MainBrowserView()
                 .environmentObject(browserState)
-                .environmentObject(LocalAIService(settings: settings))
+                .environmentObject(aiService)
                 .environmentObject(settings)
                 .frame(minWidth: 1200, minHeight: 800)
                 .onAppear {
@@ -64,8 +71,9 @@ struct PhotonApp: App {
         
         // Settings window
         WindowGroup("Settings", id: "settings") {
-            SettingsView(settings: settings, aiService: LocalAIService(settings: settings))
+            SettingsView(settings: settings, aiService: aiService)
                 .environmentObject(settings)
+                .environmentObject(aiService)
         }
         .windowStyle(.automatic)
         .defaultSize(width: 700, height: 800)
@@ -73,9 +81,7 @@ struct PhotonApp: App {
     
     private func openSettingsWindow() {
         // Open settings window using SwiftUI's window management
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
+        DispatchQueue.main.async {
             // First, try to find existing settings window
             if let existingWindow = NSApplication.shared.windows.first(where: { 
                 $0.identifier?.rawValue == "settings" || $0.title == "Settings"
@@ -94,10 +100,10 @@ struct PhotonApp: App {
                 window.identifier = NSUserInterfaceItemIdentifier("settings")
                 window.center()
                 
-                let aiService = LocalAIService(settings: self.settings)
                 window.contentView = NSHostingView(
-                    rootView: SettingsView(settings: self.settings, aiService: aiService)
-                        .environmentObject(self.settings)
+                    rootView: SettingsView(settings: settings, aiService: aiService)
+                        .environmentObject(settings)
+                        .environmentObject(aiService)
                 )
                 window.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)

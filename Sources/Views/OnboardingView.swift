@@ -317,9 +317,8 @@ struct OnboardingView: View {
     }
     
     private func connectToProvider(_ provider: AIProvider) async {
-        await MainActor.run { [weak self] in
-            guard let self = self else { return }
-            self.isConnecting = true
+        await MainActor.run {
+            isConnecting = true
         }
         
         // Connect to provider
@@ -328,9 +327,8 @@ struct OnboardingView: View {
         // Wait a bit for models to load
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         
-        await MainActor.run { [weak self] in
-            guard let self = self else { return }
-            self.isConnecting = false
+        await MainActor.run {
+            isConnecting = false
             // Auto-select first model if available
             if let models = self.getAvailableModels(for: provider),
                let firstModel = models.first,
@@ -353,7 +351,7 @@ struct SearchEngineCard: View {
         Button(action: action) {
             VStack(spacing: 20) {
                 Group {
-                    if let logoName = engine.logoImageName {
+                    if engine.logoImageName != nil {
                         if let image = logoImage {
                             Image(nsImage: image)
                                 .resizable()
@@ -375,7 +373,13 @@ struct SearchEngineCard: View {
                         .fill(isSelected ? Color.blue : Color(NSColor.controlBackgroundColor))
                 )
                 .onAppear {
-                    loadLogo()
+                    if let logoName = engine.logoImageName {
+                        if let imagePath = Bundle.main.path(forResource: logoName, ofType: "png") {
+                            logoImage = NSImage(contentsOfFile: imagePath)
+                        } else if let image = NSImage(named: logoName) {
+                            logoImage = image
+                        }
+                    }
                 }
                 
                 Text(engine.rawValue)

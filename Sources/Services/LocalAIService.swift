@@ -9,6 +9,7 @@ class LocalAIService: ObservableObject {
     private var session: URLSession
     private var metalBridge: MetalBridge?
     var settings: AISettings
+    private var connectionTask: Task<Void, Never>?
     
     init(settings: AISettings = AISettings()) {
         self.session = URLSession.shared
@@ -17,16 +18,34 @@ class LocalAIService: ObservableObject {
         self.availableModels = AIModel.defaultModels
     }
     
+    deinit {
+        connectionTask?.cancel()
+    }
+    
     func connect() {
-        Task {
-            await checkConnection()
-            await fetchAvailableModels()
+        // Cancel any existing connection task
+        connectionTask?.cancel()
+        
+        connectionTask = Task { [weak self] in
+            guard let self = self else { return }
+            await self.checkConnection()
+            await self.fetchAvailableModels()
         }
     }
     
     private func checkConnection() async {
+        // Check if task was cancelled
+        guard !Task.isCancelled else { return }
+        
         let provider = settings.selectedProvider
-        let baseURL = URL(string: provider.baseURL)!
+        guard let baseURL = URL(string: provider.baseURL) else {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.isConnected = false
+                self.connectionStatus = "Invalid base URL"
+            }
+            return
+        }
         
         switch provider {
         case .mlx:
@@ -35,9 +54,12 @@ class LocalAIService: ObservableObject {
                 let modelsURL = baseURL.appendingPathComponent("v1/models")
                 let (_, response) = try await session.data(from: modelsURL)
                 
+                guard !Task.isCancelled else { return }
+                
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 200 {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self, !Task.isCancelled else { return }
                         self.isConnected = true
                         self.connectionStatus = "Connected to MLX"
                     }
@@ -47,13 +69,18 @@ class LocalAIService: ObservableObject {
                 // Try health endpoint
             }
             
+            guard !Task.isCancelled else { return }
+            
             do {
                 let healthURL = baseURL.appendingPathComponent("health")
                 let (_, response) = try await session.data(from: healthURL)
                 
+                guard !Task.isCancelled else { return }
+                
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 200 {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self, !Task.isCancelled else { return }
                         self.isConnected = true
                         self.connectionStatus = "Connected to MLX"
                     }
@@ -61,15 +88,19 @@ class LocalAIService: ObservableObject {
                 }
             } catch {}
             
-            await MainActor.run {
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isConnected = false
                 self.connectionStatus = "MLX service not available"
             }
             
         case .openai:
             // Check OpenAI - just verify key is set
-            await MainActor.run {
-                if !settings.openAIKey.isEmpty {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                if !self.settings.openAIKey.isEmpty {
                     self.isConnected = true
                     self.connectionStatus = "OpenAI ready"
                 } else {
@@ -80,8 +111,9 @@ class LocalAIService: ObservableObject {
             
         case .mistral:
             // Check Mistral - verify key is set
-            await MainActor.run {
-                if !settings.mistralKey.isEmpty {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                if !self.settings.mistralKey.isEmpty {
                     self.isConnected = true
                     self.connectionStatus = "Mistral AI ready"
                 } else {
@@ -96,9 +128,12 @@ class LocalAIService: ObservableObject {
                 let tagsURL = baseURL.appendingPathComponent("api/tags")
                 let (_, response) = try await session.data(from: tagsURL)
                 
+                guard !Task.isCancelled else { return }
+                
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 200 {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self, !Task.isCancelled else { return }
                         self.isConnected = true
                         self.connectionStatus = "Connected to Ollama"
                     }
@@ -108,13 +143,18 @@ class LocalAIService: ObservableObject {
                 // Try health endpoint as fallback
             }
             
+            guard !Task.isCancelled else { return }
+            
             do {
                 let healthURL = baseURL.appendingPathComponent("api/version")
                 let (_, response) = try await session.data(from: healthURL)
                 
+                guard !Task.isCancelled else { return }
+                
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 200 {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self, !Task.isCancelled else { return }
                         self.isConnected = true
                         self.connectionStatus = "Connected to Ollama"
                     }
@@ -122,7 +162,10 @@ class LocalAIService: ObservableObject {
                 }
             } catch {}
             
-            await MainActor.run {
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isConnected = false
                 self.connectionStatus = "Ollama service not available"
             }
@@ -130,8 +173,18 @@ class LocalAIService: ObservableObject {
     }
     
     func fetchAvailableModels() async {
+        // Check if task was cancelled
+        guard !Task.isCancelled else { return }
+        
         let provider = settings.selectedProvider
-        let baseURL = URL(string: provider.baseURL)!
+        guard let baseURL = URL(string: provider.baseURL) else {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.availableModels = AIModel.defaultModels
+                self.settings.availableModels = AIModel.defaultModels
+            }
+            return
+        }
         
         switch provider {
         case .mlx:
@@ -139,6 +192,8 @@ class LocalAIService: ObservableObject {
             do {
                 let modelsURL = baseURL.appendingPathComponent("v1/models")
                 let (data, response) = try await session.data(from: modelsURL)
+                
+                guard !Task.isCancelled else { return }
                 
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 200,
@@ -151,7 +206,10 @@ class LocalAIService: ObservableObject {
                         return AIModel(id: id, name: name, provider: .mlx)
                     }
                     
-                    await MainActor.run {
+                    guard !Task.isCancelled else { return }
+                    
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         // Merge with defaults
                         var allModels = AIModel.defaultModels.filter { $0.provider != .mlx }
                         allModels.append(contentsOf: models)
@@ -162,6 +220,7 @@ class LocalAIService: ObservableObject {
                 }
             } catch {
                 // Failed to fetch MLX models
+                guard !Task.isCancelled else { return }
             }
             
         case .ollama:
@@ -169,6 +228,8 @@ class LocalAIService: ObservableObject {
             do {
                 let tagsURL = baseURL.appendingPathComponent("api/tags")
                 let (data, response) = try await session.data(from: tagsURL)
+                
+                guard !Task.isCancelled else { return }
                 
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 200,
@@ -183,7 +244,10 @@ class LocalAIService: ObservableObject {
                         return AIModel(id: modelId, name: displayName, provider: .ollama)
                     }
                     
-                    await MainActor.run {
+                    guard !Task.isCancelled else { return }
+                    
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         // Merge with defaults
                         var allModels = AIModel.defaultModels.filter { $0.provider != .ollama }
                         allModels.append(contentsOf: models)
@@ -194,11 +258,14 @@ class LocalAIService: ObservableObject {
                 }
             } catch {
                 // Failed to fetch Ollama models
+                guard !Task.isCancelled else { return }
             }
             
         case .openai, .mistral:
             // Use default models for OpenAI and Mistral
-            await MainActor.run {
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.availableModels = AIModel.defaultModels
                 // Also update settings availableModels
                 self.settings.availableModels = AIModel.defaultModels
