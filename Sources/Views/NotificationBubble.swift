@@ -23,8 +23,9 @@ struct NotificationBubble: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color(NSColor.windowBackgroundColor))
-                    .shadow(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 6)
-                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(0.25), radius: 20, x: 0, y: 8)
+                    .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 2)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
