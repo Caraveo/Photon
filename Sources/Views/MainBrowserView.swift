@@ -432,6 +432,9 @@ struct MainBrowserView: View {
     @State private var scrollMonitor: Any?
     @State private var localMouseMonitor: Any?
     @State private var localScrollMonitor: Any?
+    @State private var keyMonitor: Any?
+    @State private var lastScrollTime: Date = Date()
+    @State private var scrollVelocity: CGFloat = 0
     
     private func startMouseMonitoring() {
         // Monitor mouse movement globally
@@ -472,6 +475,18 @@ struct MainBrowserView: View {
         }
         localScrollMonitor = localScroll
         
+        // Monitor keyboard events
+        let keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
+            DispatchQueue.main.async {
+                self.handleKeyEvent(event)
+            }
+            return event
+        }
+        self.keyMonitor = keyMonitor
+        
+        // Start with search field visible
+        isSearchFieldVisible = true
+        
         // Start inactivity timer to hide search field after no interaction
         startInactivityTimer()
     }
@@ -493,6 +508,10 @@ struct MainBrowserView: View {
             NSEvent.removeMonitor(monitor)
             localScrollMonitor = nil
         }
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
     }
     
     private func handleMouseEvent(_ event: NSEvent) {
@@ -503,86 +522,68 @@ struct MainBrowserView: View {
         mouseLocation = screenLocation
         lastMouseMoveTime = Date()
         
-        // Reset inactivity timer on mouse movement
-        resetInactivityTimer()
-        
-        // Get window frame
-        let windowFrame = window.frame
-        let mouseY = screenLocation.y - windowFrame.minY
-        let windowHeight = windowFrame.height
-        
-        // Show search field if mouse is in top 20% of window
-        let topThreshold = windowHeight * 0.20
-        let shouldShow = mouseY > (windowHeight - topThreshold)
-        
-        updateSearchFieldVisibility(shouldShow: shouldShow)
+        // Show search field on any mouse movement (user is active)
+        showSearchFieldOnActivity()
     }
     
     private func handleMouseClick(_ event: NSEvent) {
-        guard let window = NSApplication.shared.windows.first else { return }
-        
-        let windowLocation = event.locationInWindow
-        let screenLocation = window.convertPoint(toScreen: windowLocation)
-        
-        // Get window frame
-        let windowFrame = window.frame
-        let mouseY = screenLocation.y - windowFrame.minY
-        let windowHeight = windowFrame.height
-        
-        // Calculate if click is in browser area (below tab bar)
-        let tabBarHeight: CGFloat = tabManager.tabs.count > 1 ? 48 : 0
-        let browserTopOffset = tabBarHeight
-        let browserStartY = windowHeight - browserTopOffset
-        
-        // If click is in browser area (not in search field or cards), hide search field
-        if mouseY < browserStartY && !isSearchActive {
-            updateSearchFieldVisibility(shouldShow: false)
-        }
-        
-        // Reset inactivity timer on click
-        resetInactivityTimer()
+        // Show search field on click (user is active)
+        showSearchFieldOnActivity()
+    }
+    
+    private func handleKeyEvent(_ event: NSEvent) {
+        // Show search field on any keypress (user is active)
+        showSearchFieldOnActivity()
     }
     
     private func handleScrollEvent(_ event: NSEvent) {
-        // User is scrolling - hide search field immediately
-        isScrolling = true
-        updateSearchFieldVisibility(shouldShow: false)
+        // Calculate scroll velocity to detect fast scrolling
+        let now = Date()
+        let timeDelta = now.timeIntervalSince(lastScrollTime)
+        lastScrollTime = now
         
-        // Reset inactivity timer on scroll
-        resetInactivityTimer()
+        // Get scroll delta (magnitude of scroll)
+        let scrollDelta = abs(event.scrollingDeltaY) + abs(event.scrollingDeltaX)
         
-        // Reset scrolling flag after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            self.isScrolling = false
-            // Check if mouse is in top area to show search field again
-            if self.mouseLocation.y > 0 {
-                let window = NSApplication.shared.windows.first
-                if let window = window {
-                    let windowHeight = window.frame.height
-                    let mouseY = self.mouseLocation.y - window.frame.minY
-                    let topThreshold = windowHeight * 0.20
-                    if mouseY > (windowHeight - topThreshold) {
-                        self.updateSearchFieldVisibility(shouldShow: true)
-                    }
-                }
+        // Calculate velocity (pixels per second)
+        if timeDelta > 0 {
+            scrollVelocity = scrollDelta / CGFloat(timeDelta)
+        } else {
+            scrollVelocity = scrollDelta
+        }
+        
+        // Fast scroll threshold: > 500 pixels per second
+        let fastScrollThreshold: CGFloat = 500.0
+        
+        if scrollVelocity > fastScrollThreshold {
+            // Fast scrolling - hide search field
+            isScrolling = true
+            updateSearchFieldVisibility(shouldShow: false)
+        } else {
+            // Slow/regular scrolling - show search field (user is active)
+            isScrolling = false
+            showSearchFieldOnActivity()
+        }
+        
+        // Decay scroll velocity over time
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.scrollVelocity *= 0.5
+            if self.scrollVelocity < 50 {
+                self.isScrolling = false
             }
         }
+    }
+    
+    private func showSearchFieldOnActivity() {
+        // Show search field immediately on any user activity
+        isSearchFieldVisible = true
+        resetInactivityTimer()
     }
     
     private func handleMouseHover(hovering: Bool, mouseY: CGFloat, browserHeight: CGFloat, topOffset: CGFloat) {
         if hovering {
-            // Mouse is hovering over the browser area
-            let relativeY = mouseY - topOffset
-            let topThreshold = browserHeight * 0.20
-            
-            // Show if mouse is in top 20% of browser area
-            if relativeY < topThreshold {
-                updateSearchFieldVisibility(shouldShow: true)
-                resetInactivityTimer()
-            } else if !isScrolling {
-                // Hide if mouse is lower and not scrolling
-                updateSearchFieldVisibility(shouldShow: false)
-            }
+            // Show search field on hover (user is active)
+            showSearchFieldOnActivity()
         }
     }
     
@@ -602,22 +603,17 @@ struct MainBrowserView: View {
             isSearchFieldVisible = true
             resetInactivityTimer()
         } else {
-            // Hide after a short delay (feels more natural)
-            hideTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-                DispatchQueue.main.async {
-                    // Only hide if still not active and not scrolling
-                    if !self.isSearchActive && !self.isScrolling {
-                        self.isSearchFieldVisible = false
-                    }
-                }
-            }
+            // Only hide if fast scrolling or idle (handled by inactivity timer)
+            // Don't hide on regular activity
         }
     }
     
     private func startInactivityTimer() {
-        // Hide search field after 3 seconds of inactivity
-        inactivityTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+        // Hide search field after 5 seconds of inactivity
+        inactivityTimer?.invalidate()
+        inactivityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
             DispatchQueue.main.async {
+                // Only hide if not active, not fast scrolling, and truly idle
                 if !self.isSearchActive && !self.isScrolling {
                     self.isSearchFieldVisible = false
                 }
