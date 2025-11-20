@@ -6,6 +6,7 @@ struct TabBrowserView: View {
     
     var body: some View {
         TabBrowserWebViewRepresentable(tab: tab)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
     }
 }

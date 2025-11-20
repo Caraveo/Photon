@@ -73,10 +73,15 @@ struct MainBrowserView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             
-            // Main browser view - pushed down when cards are visible
+            // Main browser view - full screen, pushed down when cards are visible
             if let activeTab = tabManager.activeTab {
                 TabBrowserView(tab: activeTab)
                     .id(activeTab.id) // Force view update on tab switch
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Placeholder if no active tab
+                Color(NSColor.windowBackgroundColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             
             // Unified Search/Input Field - Overlay on browser
@@ -111,13 +116,11 @@ struct MainBrowserView: View {
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             // Initialize AI service with settings
             aiService.settings = settings
-            // Auto-connect
-            if !aiService.isConnected {
-                aiService.connect()
-            }
+            // Don't auto-connect - user must connect manually
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NewTab"))) { _ in
             tabManager.createNewTab()
@@ -276,7 +279,7 @@ struct UnifiedSearchField: View {
                 settings: settings,
                 onProviderChange: { newProvider in
                     settings.setProvider(newProvider)
-                    aiService.connect()
+                    // Don't auto-connect - user must connect manually
                 },
                 onAPIKeyNeeded: {
                     showAPIKeyDialog = true
@@ -347,7 +350,7 @@ struct UnifiedSearchField: View {
                         settings.saveMistralKey(tempAPIKey)
                     }
                     tempAPIKey = ""
-                    aiService.connect()
+                    // User can connect manually after saving key
                 },
                 onCancel: {
                     tempAPIKey = ""
