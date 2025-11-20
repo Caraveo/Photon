@@ -212,6 +212,30 @@ struct SettingsView: View {
                     } header: {
                         Text("Connection Status")
                     }
+                    
+                    // General Settings Section
+                    Section {
+                        Button(action: {
+                            settings.resetOnboarding()
+                            // Close settings window
+                            if let window = NSApplication.shared.windows.first(where: { $0.identifier?.rawValue == "settings" }) {
+                                window.orderOut(nil)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Reset Onboarding")
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        
+                        Text("Reset the onboarding screen to run it again on next launch.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } header: {
+                        Text("General")
+                    }
                 }
                 .formStyle(.grouped)
                 .padding(20)

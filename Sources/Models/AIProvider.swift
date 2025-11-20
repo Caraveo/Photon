@@ -171,5 +171,11 @@ class AISettings: ObservableObject {
         UserDefaults.standard.set(true, forKey: hasCompletedOnboardingKey)
         UserDefaults.standard.synchronize()
     }
+    
+    func resetOnboarding() {
+        hasCompletedOnboarding = false
+        UserDefaults.standard.set(false, forKey: hasCompletedOnboardingKey)
+        UserDefaults.standard.synchronize()
+    }
 }
 
