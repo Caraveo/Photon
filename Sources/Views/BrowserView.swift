@@ -56,7 +56,6 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     // MARK: - WKScriptMessageHandler
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        print("🌐 [DEBUG] Received message: \(message.name)")
         if message.name == "metalBridge" {
             // Handle messages from TypeScript bridge
             if let messageBody = message.body as? [String: Any],
@@ -102,7 +101,6 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("❌ [DEBUG] Navigation failed: \(error.localizedDescription)")
         browserState?.updateLoadingState(false)
         tab?.isLoading = false
     }
