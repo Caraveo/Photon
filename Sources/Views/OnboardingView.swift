@@ -317,8 +317,9 @@ struct OnboardingView: View {
     }
     
     private func connectToProvider(_ provider: AIProvider) async {
-        await MainActor.run {
-            isConnecting = true
+        await MainActor.run { [weak self] in
+            guard let self = self else { return }
+            self.isConnecting = true
         }
         
         // Connect to provider
@@ -327,13 +328,14 @@ struct OnboardingView: View {
         // Wait a bit for models to load
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         
-        await MainActor.run {
-            isConnecting = false
+        await MainActor.run { [weak self] in
+            guard let self = self else { return }
+            self.isConnecting = false
             // Auto-select first model if available
-            if let models = getAvailableModels(for: provider),
+            if let models = self.getAvailableModels(for: provider),
                let firstModel = models.first,
-               selectedModel == nil {
-                selectedModel = firstModel
+               self.selectedModel == nil {
+                self.selectedModel = firstModel
             }
         }
     }
@@ -345,24 +347,18 @@ struct SearchEngineCard: View {
     let engine: SearchEngine
     let isSelected: Bool
     let action: () -> Void
+    @State private var logoImage: NSImage?
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 20) {
                 Group {
                     if let logoName = engine.logoImageName {
-                        // Try to load from bundle
-                        if let imagePath = Bundle.main.path(forResource: logoName, ofType: "png"),
-                           let nsImage = NSImage(contentsOfFile: imagePath) {
-                            Image(nsImage: nsImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        } else if let nsImage = NSImage(named: logoName) {
-                            Image(nsImage: nsImage)
+                        if let image = logoImage {
+                            Image(nsImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                         } else {
-                            // Fallback to SF Symbol
                             Image(systemName: engine.icon)
                                 .font(.system(size: 48))
                                 .foregroundColor(isSelected ? .white : .blue)
@@ -378,6 +374,9 @@ struct SearchEngineCard: View {
                     Circle()
                         .fill(isSelected ? Color.blue : Color(NSColor.controlBackgroundColor))
                 )
+                .onAppear {
+                    loadLogo()
+                }
                 
                 Text(engine.rawValue)
                     .font(.system(size: 20, weight: .semibold))

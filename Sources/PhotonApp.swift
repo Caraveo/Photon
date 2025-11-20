@@ -73,7 +73,9 @@ struct PhotonApp: App {
     
     private func openSettingsWindow() {
         // Open settings window using SwiftUI's window management
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
             // First, try to find existing settings window
             if let existingWindow = NSApplication.shared.windows.first(where: { 
                 $0.identifier?.rawValue == "settings" || $0.title == "Settings"
@@ -91,9 +93,11 @@ struct PhotonApp: App {
                 window.title = "Settings"
                 window.identifier = NSUserInterfaceItemIdentifier("settings")
                 window.center()
+                
+                let aiService = LocalAIService(settings: self.settings)
                 window.contentView = NSHostingView(
-                    rootView: SettingsView(settings: settings, aiService: LocalAIService(settings: settings))
-                        .environmentObject(settings)
+                    rootView: SettingsView(settings: self.settings, aiService: aiService)
+                        .environmentObject(self.settings)
                 )
                 window.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
