@@ -51,6 +51,7 @@ struct NotificationBubble: View {
                     }
                 }
             }
+            .clipped() // Prevent content from overflowing bubble bounds
         }
     }
     
@@ -75,6 +76,8 @@ struct NotificationBubble: View {
                         .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     Text(processedResponse)
                         .font(.system(size: 13))
@@ -82,6 +85,8 @@ struct NotificationBubble: View {
                         .lineLimit(4)
                         .foregroundColor(.primary)
                         .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
                 // URL link if available
@@ -120,6 +125,7 @@ struct NotificationBubble: View {
         }
         .padding(16)
         .frame(width: 360)
+        .fixedSize(horizontal: true, vertical: false)
     }
     
     // Expanded full mode view
@@ -179,8 +185,11 @@ struct NotificationBubble: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Render markdown with beautiful formatting
                     MarkdownTextView(text: notification.response)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 4) // Add padding to prevent text from touching scrollbar
             }
             .frame(maxHeight: 400)
             
@@ -218,6 +227,7 @@ struct NotificationBubble: View {
         .padding(20)
         .frame(width: 600)
         .frame(maxHeight: 500)
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
