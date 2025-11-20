@@ -43,9 +43,21 @@ View (SwiftUI) → BrowserState → WebView (WKWebView)
    Ensure your MLX AI service is running on `http://localhost:11973`
 
 3. **Run the Application**:
+   
+   **Option 1: Using the launch script (Recommended)**:
+   ```bash
+   ./run.sh
+   ```
+   
+   **Option 2: Direct run**:
    ```bash
    swift run Photon
    ```
+   
+   **Note**: When the app launches, a window should appear. If you see input going to the terminal instead of the app window:
+   - Click on the Photon window to bring it to focus
+   - Press `Cmd+Tab` to switch to the Photon app
+   - The app window should be visible in your Dock
 
 ## Project Structure
 
