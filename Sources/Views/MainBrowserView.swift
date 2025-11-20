@@ -364,8 +364,9 @@ struct MainBrowserView: View {
                     activeTab.currentReasoning = parsed.reasoning
                 }
                 
-                // Use answer section or full response
-                let answer = parsed.answer.isEmpty ? response.response : parsed.answer
+                // Use answer section or full response, and apply spacing fixes
+                var answer = parsed.answer.isEmpty ? response.response : parsed.answer
+                answer = MLXResponseParser.fixSpacing(answer)
                 
                 let notification = AINotification(
                     response: answer,
