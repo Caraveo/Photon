@@ -1,57 +1,12 @@
 import SwiftUI
 import WebKit
 
-struct BrowserView: View {
-    @EnvironmentObject var browserState: BrowserState
-    @State private var urlString: String = ""
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Navigation Bar
-            HStack(spacing: 8) {
-                Button(action: { browserState.goBack() }) {
-                    Image(systemName: "chevron.left")
-                        .disabled(!browserState.canGoBack)
-                }
-                .buttonStyle(.borderless)
-                .disabled(!browserState.canGoBack)
-                
-                Button(action: { browserState.goForward() }) {
-                    Image(systemName: "chevron.right")
-                }
-                .buttonStyle(.borderless)
-                .disabled(!browserState.canGoForward)
-                
-                Button(action: { browserState.reload() }) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.borderless)
-                
-                TextField("Enter URL", text: $urlString)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        browserState.navigate(to: urlString)
-                    }
-                    .onChange(of: browserState.currentURL) { newURL in
-                        if let url = newURL {
-                            urlString = url.absoluteString
-                        }
-                    }
-            }
-            .padding(8)
-            .background(Color(NSColor.controlBackgroundColor))
-            
-            // Web View
-            BrowserWebViewRepresentable()
-                .environmentObject(browserState)
-        }
-    }
-}
-
+// Simplified - just the web view representable for the unified view
 struct BrowserWebViewRepresentable: NSViewRepresentable {
     @EnvironmentObject var browserState: BrowserState
     
     func makeNSView(context: Context) -> BrowserWebView {
+        print("🌐 [DEBUG] Creating BrowserWebView")
         let webView = BrowserWebView()
         webView.setBrowserState(browserState)
         browserState.setWebView(webView)
@@ -73,7 +28,6 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     
     override init(frame: CGRect = .zero, configuration: WKWebViewConfiguration = WKWebViewConfiguration()) {
         let config = WKWebViewConfiguration()
-        // JavaScript is enabled by default in WKWebView
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         
         super.init(frame: frame, configuration: config)
@@ -81,6 +35,8 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
         // Add message handler for METAL bridge after super.init
         config.userContentController.add(self, name: "metalBridge")
         self.navigationDelegate = self
+        
+        print("🌐 [DEBUG] BrowserWebView initialized")
     }
     
     required init?(coder: NSCoder) {
@@ -89,11 +45,13 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     
     func setBrowserState(_ state: BrowserState) {
         self.browserState = state
+        print("🌐 [DEBUG] BrowserState set")
     }
     
     // MARK: - WKScriptMessageHandler
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        print("🌐 [DEBUG] Received message: \(message.name)")
         if message.name == "metalBridge" {
             // Handle messages from TypeScript bridge
             if let messageBody = message.body as? [String: Any],
@@ -109,16 +67,19 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
     }
     
     func load(url: URL) {
+        print("🌐 [DEBUG] Loading URL: \(url.absoluteString)")
         load(URLRequest(url: url))
     }
     
     // MARK: - WKNavigationDelegate
     
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        print("🌐 [DEBUG] Navigation started")
         browserState?.updateLoadingState(true)
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        print("🌐 [DEBUG] Navigation finished")
         browserState?.updateLoadingState(false)
         browserState?.updateNavigationState(
             canGoBack: webView.canGoBack,
@@ -126,12 +87,14 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
         )
         webView.evaluateJavaScript("document.title") { result, error in
             if let title = result as? String {
+                print("🌐 [DEBUG] Page title: \(title)")
                 self.browserState?.updateTitle(title)
             }
         }
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        print("❌ [DEBUG] Navigation failed: \(error.localizedDescription)")
         browserState?.updateLoadingState(false)
     }
     
@@ -139,4 +102,3 @@ class BrowserWebView: WKWebView, WKNavigationDelegate, WKScriptMessageHandler {
         decisionHandler(.allow)
     }
 }
-

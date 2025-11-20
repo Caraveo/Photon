@@ -4,23 +4,50 @@ import Combine
 class LocalAIService: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var connectionStatus: String = "Disconnected"
+    @Published var availableModels: [AIModel] = []
     
-    private let baseURL: URL
-    private let session: URLSession
+    private var session: URLSession
     private var metalBridge: MetalBridge?
+    var settings: AISettings
     
-    init() {
-        // MLX server on port 11973
-        self.baseURL = URL(string: "http://localhost:11973")!
+    init(settings: AISettings = AISettings()) {
         self.session = URLSession.shared
         self.metalBridge = MetalBridge()
+        self.settings = settings
+        self.availableModels = AIModel.defaultModels
     }
     
     func connect() {
-        // Check if MLX service is running
         Task {
+            await checkConnection()
+            await fetchAvailableModels()
+        }
+    }
+    
+    private func checkConnection() async {
+        let provider = settings.selectedProvider
+        let baseURL = URL(string: provider.baseURL)!
+        
+        switch provider {
+        case .mlx:
+            // Check MLX service
             do {
-                // Try health endpoint first
+                let modelsURL = baseURL.appendingPathComponent("v1/models")
+                let (_, response) = try await session.data(from: modelsURL)
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200 {
+                    await MainActor.run {
+                        self.isConnected = true
+                        self.connectionStatus = "Connected to MLX"
+                    }
+                    return
+                }
+            } catch {
+                // Try health endpoint
+            }
+            
+            do {
                 let healthURL = baseURL.appendingPathComponent("health")
                 let (_, response) = try await session.data(from: healthURL)
                 
@@ -32,75 +59,116 @@ class LocalAIService: ObservableObject {
                     }
                     return
                 }
-            } catch {
-                // Health endpoint might not exist, try models endpoint
+            } catch {}
+            
+            await MainActor.run {
+                self.isConnected = false
+                self.connectionStatus = "MLX service not available"
             }
             
-            // Fallback: try models endpoint to verify connection
-            do {
-                let modelsURL = baseURL.appendingPathComponent("v1/models")
-                let (_, response) = try await session.data(from: modelsURL)
-                
-                if let httpResponse = response as? HTTPURLResponse,
-                   httpResponse.statusCode == 200 {
-                    await MainActor.run {
-                        self.isConnected = true
-                        self.connectionStatus = "Connected to MLX"
-                    }
+        case .openai:
+            // Check OpenAI - just verify key is set
+            await MainActor.run {
+                if !settings.openAIKey.isEmpty {
+                    self.isConnected = true
+                    self.connectionStatus = "OpenAI ready"
                 } else {
-                    await MainActor.run {
-                        self.isConnected = false
-                        self.connectionStatus = "Service not available"
-                    }
-                }
-            } catch {
-                await MainActor.run {
                     self.isConnected = false
-                    self.connectionStatus = "Connection failed: \(error.localizedDescription)"
+                    self.connectionStatus = "OpenAI key not set"
+                }
+            }
+            
+        case .mistral:
+            // Check Mistral - verify key is set
+            await MainActor.run {
+                if !settings.mistralKey.isEmpty {
+                    self.isConnected = true
+                    self.connectionStatus = "Mistral AI ready"
+                } else {
+                    self.isConnected = false
+                    self.connectionStatus = "Mistral key not set"
                 }
             }
         }
     }
     
-    func sendMessage(_ message: String) async throws -> AIResponse {
+    private func fetchAvailableModels() async {
+        let provider = settings.selectedProvider
+        let baseURL = URL(string: provider.baseURL)!
+        
+        switch provider {
+        case .mlx:
+            // Fetch models from MLX
+            do {
+                let modelsURL = baseURL.appendingPathComponent("v1/models")
+                let (data, response) = try await session.data(from: modelsURL)
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let modelsData = json["data"] as? [[String: Any]] {
+                    
+                    let models = modelsData.compactMap { modelData -> AIModel? in
+                        guard let id = modelData["id"] as? String else { return nil }
+                        let name = modelData["id"] as? String ?? id
+                        return AIModel(id: id, name: name, provider: .mlx)
+                    }
+                    
+                    await MainActor.run {
+                        // Merge with defaults
+                        var allModels = AIModel.defaultModels.filter { $0.provider != .mlx }
+                        allModels.append(contentsOf: models)
+                        self.availableModels = allModels
+                    }
+                }
+            } catch {
+                print("⚠️ [DEBUG] Failed to fetch MLX models: \(error.localizedDescription)")
+            }
+            
+        case .openai, .mistral:
+            // Use default models for OpenAI and Mistral
+            await MainActor.run {
+                self.availableModels = AIModel.defaultModels
+            }
+        }
+    }
+    
+    func sendMessage(_ message: String, model: AIModel? = nil) async throws -> AIResponse {
         guard isConnected else {
             throw AIError.notConnected
         }
         
-        // Use METAL bridge for communication
-        if let bridge = metalBridge {
-            let response = try await bridge.sendToAI(message: message)
-            let relevantURL = try await findRelevantURL(for: message, response: response)
-            return AIResponse(response: response, relevantURL: relevantURL, query: message)
-        }
+        let selectedModel = model ?? settings.selectedModel
+        let provider = settings.selectedProvider
         
-        // Fallback to direct HTTP
-        return try await sendHTTPRequest(message: message)
+        switch provider {
+        case .mlx:
+            return try await sendMLXRequest(message: message, model: selectedModel)
+        case .openai:
+            return try await sendOpenAIRequest(message: message, model: selectedModel)
+        case .mistral:
+            return try await sendMistralRequest(message: message, model: selectedModel)
+        }
     }
     
-    private func sendHTTPRequest(message: String) async throws -> AIResponse {
+    private func sendMLXRequest(message: String, model: AIModel) async throws -> AIResponse {
+        let baseURL = URL(string: AIProvider.mlx.baseURL)!
         let url = baseURL.appendingPathComponent("v1/chat/completions")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // MLX typically uses OpenAI-compatible API
-        // Model name can be empty or use the default model
         let requestBody: [String: Any] = [
-            "model": "",  // MLX will use default model if empty
+            "model": model.id == "mlx-default" ? "" : model.id,
             "messages": [
-                [
-                    "role": "user",
-                    "content": message
-                ]
+                ["role": "user", "content": message]
             ],
             "temperature": 0.7,
             "max_tokens": 1000
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
         let (data, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
@@ -116,9 +184,87 @@ class LocalAIService: ObservableObject {
             throw AIError.invalidResponse
         }
         
-        // Find relevant URL based on the query and response
         let relevantURL = try await findRelevantURL(for: message, response: content)
+        return AIResponse(response: content, relevantURL: relevantURL, query: message)
+    }
+    
+    private func sendOpenAIRequest(message: String, model: AIModel) async throws -> AIResponse {
+        guard !settings.openAIKey.isEmpty else {
+            throw AIError.notConnected
+        }
         
+        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(settings.openAIKey)", forHTTPHeaderField: "Authorization")
+        
+        let requestBody: [String: Any] = [
+            "model": model.id,
+            "messages": [
+                ["role": "user", "content": message]
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1000
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw AIError.requestFailed
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let choices = json["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let messageObj = firstChoice["message"] as? [String: Any],
+              let content = messageObj["content"] as? String else {
+            throw AIError.invalidResponse
+        }
+        
+        let relevantURL = try await findRelevantURL(for: message, response: content)
+        return AIResponse(response: content, relevantURL: relevantURL, query: message)
+    }
+    
+    private func sendMistralRequest(message: String, model: AIModel) async throws -> AIResponse {
+        guard !settings.mistralKey.isEmpty else {
+            throw AIError.notConnected
+        }
+        
+        let url = URL(string: "https://api.mistral.ai/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(settings.mistralKey)", forHTTPHeaderField: "Authorization")
+        
+        let requestBody: [String: Any] = [
+            "model": model.id,
+            "messages": [
+                ["role": "user", "content": message]
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1000
+        ]
+        
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw AIError.requestFailed
+        }
+        
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let choices = json["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let messageObj = firstChoice["message"] as? [String: Any],
+              let content = messageObj["content"] as? String else {
+            throw AIError.invalidResponse
+        }
+        
+        let relevantURL = try await findRelevantURL(for: message, response: content)
         return AIResponse(response: content, relevantURL: relevantURL, query: message)
     }
     
