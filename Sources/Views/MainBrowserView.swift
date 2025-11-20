@@ -256,6 +256,23 @@ struct MainBrowserView: View {
         // Clear previous cards for this search
         activeTab.aiResponseCards.removeAll()
         
+        // Auto-connect if not already connected
+        if !aiService.isConnected {
+            print("🔌 [DEBUG] Auto-connecting to AI service...")
+            aiService.connect()
+            // Wait a bit for connection to establish
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                await generatePromptsAfterConnection(query: query, activeTab: activeTab)
+            }
+        } else {
+            Task {
+                await generatePromptsAfterConnection(query: query, activeTab: activeTab)
+            }
+        }
+    }
+    
+    private func generatePromptsAfterConnection(query: String, activeTab: BrowserTab) async {
         // Generate 3 different prompts
         let prompts = PromptGenerator.generatePrompts(from: query)
         let selectedModel = settings.selectedModel
@@ -268,53 +285,51 @@ struct MainBrowserView: View {
         }
         
         // Run all 3 prompts in parallel
-        Task {
-            await withTaskGroup(of: (PromptMode, Result<AIResponse, Error>).self) { group in
-                for (mode, prompt) in prompts {
-                    group.addTask {
-                        do {
-                            print("🚀 [DEBUG] Sending request for \(mode.rawValue) mode")
-                            let response = try await aiService.sendMessage(prompt, model: selectedModel)
-                            return (mode, .success(response))
-                        } catch {
-                            print("❌ [DEBUG] Error in \(mode.rawValue) mode: \(error.localizedDescription)")
-                            return (mode, .failure(error))
-                        }
+        await withTaskGroup(of: (PromptMode, Result<AIResponse, Error>).self) { group in
+            for (mode, prompt) in prompts {
+                group.addTask {
+                    do {
+                        print("🚀 [DEBUG] Sending request for \(mode.rawValue) mode")
+                        let response = try await aiService.sendMessage(prompt, model: selectedModel)
+                        return (mode, .success(response))
+                    } catch {
+                        print("❌ [DEBUG] Error in \(mode.rawValue) mode: \(error.localizedDescription)")
+                        return (mode, .failure(error))
                     }
                 }
-                
-                // Collect results as they complete
-                for await (mode, result) in group {
-                    await MainActor.run {
-                        completedCount += 1
+            }
+            
+            // Collect results as they complete
+            for await (mode, result) in group {
+                await MainActor.run {
+                    completedCount += 1
+                    
+                    switch result {
+                    case .success(let response):
+                        let card = AIResponseCard(
+                            response: response.response,
+                            relevantURL: response.relevantURL,
+                            query: query,
+                            promptMode: mode
+                        )
+                        activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
+                        print("✅ [DEBUG] Received response for \(mode.rawValue) mode (\(completedCount)/\(totalPrompts))")
                         
-                        switch result {
-                        case .success(let response):
-                            let card = AIResponseCard(
-                                response: response.response,
-                                relevantURL: response.relevantURL,
-                                query: query,
-                                promptMode: mode
-                            )
-                            activeTab.aiResponseCards.insert(card, at: 0) // Insert at top
-                            print("✅ [DEBUG] Received response for \(mode.rawValue) mode (\(completedCount)/\(totalPrompts))")
-                            
-                        case .failure(let error):
-                            print("❌ [DEBUG] Error for \(mode.rawValue) mode: \(error.localizedDescription)")
-                            let errorCard = AIResponseCard(
-                                response: "Error: \(error.localizedDescription)",
-                                relevantURL: nil,
-                                query: query,
-                                promptMode: mode
-                            )
-                            activeTab.aiResponseCards.insert(errorCard, at: 0)
-                        }
-                        
-                        // Check if all requests are done
-                        if completedCount >= totalPrompts {
-                            activeTab.isProcessingAI = false
-                            print("✨ [DEBUG] All \(totalPrompts) responses completed")
-                        }
+                    case .failure(let error):
+                        print("❌ [DEBUG] Error for \(mode.rawValue) mode: \(error.localizedDescription)")
+                        let errorCard = AIResponseCard(
+                            response: "Error: \(error.localizedDescription)",
+                            relevantURL: nil,
+                            query: query,
+                            promptMode: mode
+                        )
+                        activeTab.aiResponseCards.insert(errorCard, at: 0)
+                    }
+                    
+                    // Check if all requests are done
+                    if completedCount >= totalPrompts {
+                        activeTab.isProcessingAI = false
+                        print("✨ [DEBUG] All \(totalPrompts) responses completed")
                     }
                 }
             }
@@ -474,8 +489,8 @@ struct MainBrowserView: View {
             hideTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { _ in
                 DispatchQueue.main.async {
                     // Only hide if still not active and not scrolling
-                    if !self.isSearchActive && !self.isScrolling {
-                        self.isSearchFieldVisible = false
+                    if !isSearchActive && !isScrolling {
+                        isSearchFieldVisible = false
                     }
                 }
             }

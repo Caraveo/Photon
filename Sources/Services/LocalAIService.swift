@@ -201,8 +201,27 @@ class LocalAIService: ObservableObject {
     }
     
     func sendMessage(_ message: String, model: AIModel? = nil) async throws -> AIResponse {
+        // Try to connect if not connected (for local services)
+        if !isConnected {
+            let provider = settings.selectedProvider
+            // Auto-connect for local services (MLX, Ollama)
+            if provider == .mlx || provider == .ollama {
+                await checkConnection()
+                // If still not connected, try one more time after a brief delay
+                if !isConnected {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                    await checkConnection()
+                }
+            }
+        }
+        
         guard isConnected else {
-            throw AIError.notConnected
+            let provider = settings.selectedProvider
+            let errorMsg = provider == .mlx ? "MLX service not available. Make sure MLX is running on http://localhost:11973" :
+                          provider == .ollama ? "Ollama service not available. Make sure Ollama is running on http://localhost:11434" :
+                          provider == .openai ? "OpenAI API key not set. Please set it in Settings." :
+                          "Mistral API key not set. Please set it in Settings."
+            throw AIError.notConnectedWithMessage(errorMsg)
         }
         
         let selectedModel = model ?? settings.selectedModel
@@ -484,13 +503,16 @@ class LocalAIService: ObservableObject {
 
 enum AIError: LocalizedError {
     case notConnected
+    case notConnectedWithMessage(String)
     case requestFailed
     case invalidResponse
     
     var errorDescription: String? {
         switch self {
         case .notConnected:
-            return "Not connected to MLX service"
+            return "Not connected to AI service"
+        case .notConnectedWithMessage(let message):
+            return message
         case .requestFailed:
             return "Request to AI service failed"
         case .invalidResponse:
